@@ -4,7 +4,7 @@ Registro **open source y colaborativo** de personas **ya localizadas** tras el s
 
 **Sitio:** [localizadosvenezuela.com](https://localizadosvenezuela.com)
 
-> Este proyecto es **solo para localizados**. No sirve para reportar desaparecidos.  
+> Este proyecto es **solo para localizados**. No sirve para reportar desaparecidos.
 > Para desaparecidos: [desaparecidosterremotovenezuela.com](https://desaparecidosterremotovenezuela.com/)
 
 ## Qué hace
@@ -119,6 +119,8 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 | `npm run lint:fix` | ESLint con auto-fix                      |
 | `npm run format`   | Prettier                                 |
 | `npm run check`    | lint + format:check (lo que corre el CI) |
+| `npm test`         | Vitest en modo watch (desarrollo)        |
+| `npm run test:run` | Vitest una sola vez (CI)                 |
 
 ## Colaborar
 
@@ -130,6 +132,7 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 
 ```bash
 npm run check
+npm run test:run
 npm run build
 ```
 
@@ -147,6 +150,7 @@ GitHub Actions ejecuta en cada PR:
 
 - `npm run lint`
 - `npm run format:check`
+- `npm run test:run`
 - `npm run build`
 
 ### Ideas para contribuir
