@@ -4,13 +4,7 @@ import { DesaparecidosLink } from "@/components/DesaparecidosLink";
 import { analytics } from "@/lib/analytics";
 import { Heart } from "lucide-react";
 import { FaLinkedin } from "react-icons/fa6";
-import {
-  SiBuymeacoffee,
-  SiGithub,
-  SiInstagram,
-  SiX,
-  SiYoutube,
-} from "react-icons/si";
+import { SiBuymeacoffee, SiGithub, SiInstagram, SiX, SiYoutube } from "react-icons/si";
 
 const GITHUB_REPO = "https://github.com/ggangix/localizados-venezuela";
 
