@@ -195,15 +195,16 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 
 ## Scripts de desarrollo
 
-| Comando            | Descripción                              |
-| ------------------ | ---------------------------------------- |
-| `npm run dev`      | Servidor de desarrollo                   |
-| `npm run build`    | Build de producción                      |
-| `npm run start`    | Servir build                             |
-| `npm run lint`     | ESLint                                   |
-| `npm run lint:fix` | ESLint con auto-fix                      |
-| `npm run format`   | Prettier                                 |
-| `npm run check`    | lint + format:check (lo que corre el CI) |
+| Comando                   | Descripción                                    |
+| ------------------------- | ---------------------------------------------- |
+| `npm run dev`             | Servidor de desarrollo                         |
+| `npm run build`           | Build de producción                            |
+| `npm run start`           | Servir build                                   |
+| `npm run lint`            | ESLint                                         |
+| `npm run lint:fix`        | ESLint con auto-fix                            |
+| `npm run test:rate-limit` | Test unitario del rate limit de contribuciones |
+| `npm run format`          | Prettier                                       |
+| `npm run check`           | lint + format:check (lo que corre el CI)       |
 
 ## Colaborar
 
