@@ -9,6 +9,7 @@
 import mongoose from "mongoose";
 import { Lugar } from "../src/lib/models/Lugar";
 import { Localizado, normalizeNombre } from "../src/lib/models/Localizado";
+import { notifyLocalizadoChanged, snapshotLocalizado } from "../src/lib/notifications";
 
 const MONGODB_URI =
   process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017/localizados_venezuela";
@@ -64,6 +65,7 @@ type LocalizadoRow = {
   lugarId: mongoose.Types.ObjectId;
   estado: string;
   createdAt?: Date;
+  deletedAt?: Date | null;
 };
 
 function log(msg: string) {
@@ -99,6 +101,14 @@ function scoreLocalizado(doc: LocalizadoRow): number {
   if (doc.condicion && doc.condicion !== "desconocido") s += 1;
   if (doc.nombreCompleto.length > 8) s += 1;
   return s;
+}
+
+async function recordMergeUpdate(before: LocalizadoRow, after: Partial<LocalizadoRow>) {
+  await notifyLocalizadoChanged({
+    before: snapshotLocalizado(before),
+    after: snapshotLocalizado({ ...before, ...after }),
+    source: "merge_script",
+  });
 }
 
 function pickCanonical(a: LugarRow, b: LugarRow): { keep: LugarRow; drop: LugarRow } {
@@ -239,6 +249,8 @@ async function mergeLugares(
                 ? keepPerson.condicion
                 : dropPerson.condicion,
           };
+          await recordMergeUpdate(dropPerson, { deletedAt: new Date() });
+          await recordMergeUpdate(keepPerson, merged);
           // Borrar primero para no violar índice único (lugarId + nombreNormalizado)
           await Localizado.deleteOne({ _id: dropPerson._id });
           await Localizado.updateOne({ _id: keepPerson._id }, { $set: merged });
@@ -251,6 +263,7 @@ async function mergeLugares(
       }
 
       if (APPLY) {
+        await recordMergeUpdate(person, { lugarId: keep._id });
         await Localizado.updateOne(
           { _id: person._id },
           { $set: { lugarId: keep._id } }
@@ -296,6 +309,16 @@ async function dedupeGlobal() {
 
     for (const loser of losers) {
       if (APPLY) {
+        await recordMergeUpdate(winner, {
+          edad: winner.edad || loser.edad,
+          cedula: winner.cedula || loser.cedula,
+          telefono: winner.telefono || loser.telefono,
+          direccion: winner.direccion || loser.direccion,
+          observaciones: winner.observaciones || loser.observaciones,
+          condicion:
+            winner.condicion !== "desconocido" ? winner.condicion : loser.condicion,
+        });
+        await recordMergeUpdate(loser, { deletedAt: new Date() });
         await Localizado.updateOne(
           { _id: winner._id },
           {
@@ -350,6 +373,7 @@ async function dedupeByCedula() {
         continue;
       }
       if (APPLY) {
+        await recordMergeUpdate(loser, { deletedAt: new Date() });
         await Localizado.deleteOne({ _id: loser._id });
       }
       removed++;

@@ -6,6 +6,23 @@ import { Lugar } from "@/lib/models/Lugar";
 import type { OcrRow } from "@/lib/ocr-parser";
 import { makeSlug, makeUniqueSlug } from "@/lib/slug";
 import type { CondicionPersona, EstadoPublicacion, FuenteInfo } from "@/lib/types";
+import {
+  notifyLocalizadoChanged,
+  notifyLocalizadoCreated,
+  snapshotLocalizado,
+} from "@/lib/notifications";
+import type { LocalizadoChangeSource } from "@/lib/models/LocalizadoChangeEvent";
+
+function queueNotificationTask(label: string, task: () => Promise<unknown>) {
+  setTimeout(() => {
+    void task().catch((err) => {
+      console.error("[localizado notification task failed]", {
+        task: label,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+  }, 0);
+}
 
 export type PersonaInput = {
   nombreCompleto: string;
@@ -20,6 +37,8 @@ export type PersonaInput = {
   estado?: EstadoPublicacion;
   fuente?: FuenteInfo;
   contribucionId?: string;
+  auditSource?: LocalizadoChangeSource;
+  importRunId?: string;
 };
 
 export async function resolveLugarId(
@@ -65,7 +84,7 @@ export async function createLocalizado(input: PersonaInput) {
     if (dup) throw new Error(`Ya existe publicado: ${nombreCompleto}`);
   }
 
-  return Localizado.create({
+  const doc = await Localizado.create({
     slug: makeUniqueSlug(nombreCompleto, input.cedula),
     nombreCompleto,
     nombreNormalizado: normalizeNombre(nombreCompleto),
@@ -82,6 +101,17 @@ export async function createLocalizado(input: PersonaInput) {
       ? new mongoose.Types.ObjectId(input.contribucionId)
       : undefined,
   });
+
+  queueNotificationTask("localizado.created", () =>
+    notifyLocalizadoCreated({
+      localizadoId: String(doc._id),
+      source: input.auditSource,
+      contributionId: input.contribucionId,
+      importRunId: input.importRunId,
+    })
+  );
+
+  return doc;
 }
 
 export async function createLocalizadosFromOcr(
@@ -92,6 +122,8 @@ export async function createLocalizadosFromOcr(
     estado?: EstadoPublicacion;
     fuente: FuenteInfo;
     contribucionId?: string;
+    auditSource?: LocalizadoChangeSource;
+    importRunId?: string;
   }
 ) {
   const created: string[] = [];
@@ -112,6 +144,8 @@ export async function createLocalizadosFromOcr(
         estado: opts.estado ?? "pending",
         fuente: opts.fuente,
         contribucionId: opts.contribucionId,
+        auditSource: opts.auditSource ?? "ocr_upload",
+        importRunId: opts.importRunId,
       });
       created.push(String(doc._id));
     } catch (err) {
@@ -126,11 +160,15 @@ export async function createLocalizadosFromOcr(
 
 export async function updateLocalizado(
   id: string,
-  patch: Partial<PersonaInput> & { restore?: boolean }
+  patch: Partial<PersonaInput> & {
+    restore?: boolean;
+    auditSource?: LocalizadoChangeSource;
+  }
 ) {
   await connectDB();
   const doc = await Localizado.findById(id);
   if (!doc) throw new Error("Persona no encontrada");
+  const before = snapshotLocalizado(doc);
 
   if (patch.restore) {
     doc.deletedAt = undefined;
@@ -171,24 +209,58 @@ export async function updateLocalizado(
   }
 
   await doc.save();
+  const after = snapshotLocalizado(doc);
+  queueNotificationTask("localizado.changed", () =>
+    notifyLocalizadoChanged({
+      before,
+      after,
+      source: patch.auditSource ?? "admin",
+      contributionId: patch.contribucionId,
+      importRunId: patch.importRunId,
+    })
+  );
   return doc;
 }
 
 export async function softDeleteLocalizados(ids: string[], by = "admin") {
   await connectDB();
+  const rows = await Localizado.find({ _id: { $in: ids } });
+  const before = new Map(rows.map((row) => [String(row._id), snapshotLocalizado(row)]));
+  const deletedAt = new Date();
   const result = await Localizado.updateMany(
     { _id: { $in: ids } },
-    { $set: { deletedAt: new Date(), deletedBy: by } }
+    { $set: { deletedAt, deletedBy: by } }
   );
+  for (const row of rows) {
+    queueNotificationTask("localizado.soft_deleted", () =>
+      notifyLocalizadoChanged({
+        before: before.get(String(row._id)) ?? snapshotLocalizado(row),
+        after: { ...snapshotLocalizado(row), deletedAt },
+        actor: by,
+        source: "admin",
+      })
+    );
+  }
   return result.modifiedCount;
 }
 
 export async function restoreLocalizados(ids: string[]) {
   await connectDB();
+  const rows = await Localizado.find({ _id: { $in: ids } });
+  const before = new Map(rows.map((row) => [String(row._id), snapshotLocalizado(row)]));
   const result = await Localizado.updateMany(
     { _id: { $in: ids } },
     { $unset: { deletedAt: "", deletedBy: "" } }
   );
+  for (const row of rows) {
+    queueNotificationTask("localizado.restored", () =>
+      notifyLocalizadoChanged({
+        before: before.get(String(row._id)) ?? snapshotLocalizado(row),
+        after: { ...snapshotLocalizado(row), deletedAt: null },
+        source: "admin",
+      })
+    );
+  }
   return result.modifiedCount;
 }
 

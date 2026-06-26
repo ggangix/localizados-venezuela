@@ -30,6 +30,7 @@
     ]
   },
   "dependencies": {
+    "@messagebird/sdk": "^0.2.0",
     "lucide-react": "^0.469.0",
     "mongoose": "^8.9.5",
     "nanoid": "^5.0.9",
