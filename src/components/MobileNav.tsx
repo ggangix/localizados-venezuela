@@ -16,7 +16,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="flex gap-1 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden"
+      className="flex justify-center gap-2 pb-1 md:hidden"
       aria-label="Navegación principal"
     >
       {links.map((link) => {
@@ -27,10 +27,10 @@ export function MobileNav() {
             key={link.href}
             href={link.href}
             onClick={() => analytics.navigation(link.href, "mobile")}
-            className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-medium transition active:scale-95 ${
+            className={`min-h-11 shrink-0 cursor-pointer rounded-full px-4 py-2.5 text-sm font-semibold outline-none transition-colors duration-200 focus:ring-4 focus:ring-brand-300 ${
               active
-                ? "bg-brand-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-brand-800 text-white shadow-sm"
+                : "bg-brand-100 text-brand-800 hover:bg-brand-200"
             }`}
           >
             {link.label}
