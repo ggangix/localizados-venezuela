@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { DesaparecidosLink } from "@/components/DesaparecidosLink";
 import { LocalizadoCard } from "@/components/LocalizadoCard";
+import { Pagination } from "@/components/Pagination";
 import { SearchForm } from "@/components/SearchForm";
 import { SearchResultsTracker } from "@/components/SearchResultsTracker";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -20,10 +21,17 @@ export default async function BuscarPage({
 }) {
   const params = await searchParams;
   const q = params.q ?? "";
-  const page = Number(params.page ?? "1");
+  const page = Math.max(1, Number(params.page ?? "1") || 1);
   const result = q
     ? await searchLocalizados({ q, page, limit: 20 })
     : { data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+
+  function buildHref(p: number) {
+    const qs = new URLSearchParams();
+    if (q) qs.set("q", q);
+    qs.set("page", String(p));
+    return `/buscar?${qs.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -70,6 +78,15 @@ export default async function BuscarPage({
           </p>
         )}
       </div>
+
+      {q && (
+        <Pagination
+          page={result.meta.page}
+          totalPages={result.meta.totalPages}
+          total={result.meta.total}
+          buildHref={buildHref}
+        />
+      )}
     </div>
   );
 }

@@ -3,11 +3,15 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LocalizadoCard } from "@/components/LocalizadoCard";
+import { Pagination } from "@/components/Pagination";
 import { ShareButtons } from "@/components/ShareButtons";
 import { getLugarBySlug } from "@/lib/queries";
 import { absoluteUrl, shareLugar } from "@/lib/share";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ page?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -24,9 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function LugarPage({ params }: Props) {
+export default async function LugarPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const data = await getLugarBySlug(slug);
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? "1") || 1);
+
+  const data = await getLugarBySlug(slug, page, 50);
   if (!data) notFound();
 
   const { lugar, localizados, meta } = data;
@@ -64,19 +71,12 @@ export default async function LugarPage({ params }: Props) {
         ))}
       </div>
 
-      {meta && meta.totalPages > 1 && (
-        <p className="text-sm text-slate-500">
-          Página {meta.page} de {meta.totalPages} ({meta.total} en total). Más
-          resultados vía{" "}
-          <a href="/api" className="text-brand-600 underline">
-            API
-          </a>
-          :{" "}
-          <code className="text-xs">
-            /api/v1/lugares/{slug}?page={meta.page + 1}
-          </code>
-        </p>
-      )}
+      <Pagination
+        page={meta.page}
+        totalPages={meta.totalPages}
+        total={meta.total}
+        buildHref={(p) => `/lugares/${slug}?page=${p}`}
+      />
 
       <ShareButtons
         variant="sticky"
