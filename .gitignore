@@ -1,0 +1,20 @@
+node_modules
+.next
+out
+
+# secrets / entorno local
+.env
+.env.*
+!.env.example
+
+public/uploads/*
+!public/uploads/.gitkeep
+
+# datos locales grandes (mantenedores)
+*.xlsx
+*.xlsm
+
+# tooling
+.eslintcache
+*.tsbuildinfo
+.DS_Store

@@ -1,0 +1,46 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy localizados-venezuela
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            cd ${{ secrets.VPS_PROJECT_PATH }}
+
+            # Pull latest changes (HTTPS — repo público)
+            cd localizados-venezuela
+            git remote set-url origin https://github.com/ggangix/localizados-venezuela.git
+            git pull origin master
+            cd ..
+
+            # Rebuild and restart only this service
+            cd docker
+            docker-compose build localizados-venezuela
+            docker-compose up -d localizados-venezuela
+
+            # Cleanup old images
+            docker image prune -f
+
+            echo "✅ localizados-venezuela deployed successfully"
+
+  notify:
+    needs: [deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- localizados-venezuela: ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY

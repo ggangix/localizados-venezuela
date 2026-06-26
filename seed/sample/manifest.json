@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "sample": true,
+  "exportedAt": "2026-06-26T00:00:00.000Z",
+  "source": "subset de 25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+  "fuente": {
+    "tipo": "excel",
+    "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+    "fecha": "25JUN26 23:30 (Venezuela)",
+    "notas": "Subset para desarrollo — genera el dataset completo con npm run seed:export"
+  },
+  "counts": {
+    "lugares": 3,
+    "localizados": 12
+  }
+}

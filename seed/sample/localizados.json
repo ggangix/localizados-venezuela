@@ -1,0 +1,169 @@
+[
+  {
+    "slug": "abello-matilde-a1b2c3",
+    "nombreCompleto": "ABELLO MATILDE",
+    "nombreNormalizado": "ABELLO MATILDE",
+    "lugarSlug": "hospital-domingo-luciani",
+    "edad": "74",
+    "observaciones": "Fallecida",
+    "condicion": "fallecido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "acosta-alexander-d4e5f6",
+    "nombreCompleto": "ACOSTA ALEXANDER",
+    "nombreNormalizado": "ACOSTA ALEXANDER",
+    "lugarSlug": "hospital-domingo-luciani",
+    "edad": "34",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "arteaga-aide-g7h8i9",
+    "nombreCompleto": "ARTEAGA AIDE",
+    "nombreNormalizado": "ARTEAGA AIDE",
+    "lugarSlug": "hospital-domingo-luciani",
+    "observaciones": "Politrauma — Rx",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "barreto-ricardo-j0k1l2",
+    "nombreCompleto": "BARRETO RICARDO",
+    "nombreNormalizado": "BARRETO RICARDO",
+    "lugarSlug": "hospital-domingo-luciani",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "gonzalez-gabriel-m3n4o5",
+    "nombreCompleto": "GONZALEZ GABRIEL",
+    "nombreNormalizado": "GONZALEZ GABRIEL",
+    "lugarSlug": "hospital-universitario-de-caracas",
+    "edad": "45",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "rodriguez-juan-p6q7r8",
+    "nombreCompleto": "RODRIGUEZ JUAN",
+    "nombreNormalizado": "RODRIGUEZ JUAN",
+    "lugarSlug": "hospital-universitario-de-caracas",
+    "cedula": "12345678",
+    "telefono": "04141234567",
+    "condicion": "vivo",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "martinez-erik-s9t0u1",
+    "nombreCompleto": "MARTINEZ ERIK",
+    "nombreNormalizado": "MARTINEZ ERIK",
+    "lugarSlug": "hospital-universitario-de-caracas",
+    "edad": "28",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "alvarado-nairobis-v2w3x4",
+    "nombreCompleto": "ALVARADO NAIROBIS",
+    "nombreNormalizado": "ALVARADO NAIROBIS",
+    "lugarSlug": "cruz-roja",
+    "direccion": "Barquisimeto",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "cedeno-carlos-y5z6a7",
+    "nombreCompleto": "CEDEÑO CARLOS",
+    "nombreNormalizado": "CEDENO CARLOS",
+    "lugarSlug": "cruz-roja",
+    "direccion": "Valles del Tuy",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "ramirez-eleysa-b8c9d0",
+    "nombreCompleto": "RAMÍREZ ELEYSA",
+    "nombreNormalizado": "RAMIREZ ELEYSA",
+    "lugarSlug": "cruz-roja",
+    "direccion": "La Guaira",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "perez-carmen-e1f2g3",
+    "nombreCompleto": "PÉREZ CARMEN",
+    "nombreNormalizado": "PEREZ CARMEN",
+    "lugarSlug": "cruz-roja",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  },
+  {
+    "slug": "vargas-angel-h4i5j6",
+    "nombreCompleto": "VARELA ANGEL",
+    "nombreNormalizado": "VARELA ANGEL",
+    "lugarSlug": "cruz-roja",
+    "condicion": "desconocido",
+    "fuente": {
+      "tipo": "excel",
+      "nombre": "25JUN26 11PM Pacientes Consolidados Hospitales Venezuela.xlsx",
+      "fecha": "25JUN26 23:30 (Venezuela)",
+      "notas": "Subset desarrollo"
+    }
+  }
+]

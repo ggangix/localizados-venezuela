@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "note": "Dataset completo no generado en este clone. Ejecuta: npm run seed:export",
+  "sampleAvailable": true,
+  "samplePath": "seed/sample/",
+  "commands": {
+    "quick": "npm run seed:sample",
+    "full": "npm run seed:export && npm run seed",
+    "fromExcel": "npm run seed:excel"
+  }
+}

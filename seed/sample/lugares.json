@@ -1,0 +1,17 @@
+[
+  {
+    "slug": "hospital-domingo-luciani",
+    "nombre": "Hospital Domingo Luciani",
+    "tipo": "hospital"
+  },
+  {
+    "slug": "hospital-universitario-de-caracas",
+    "nombre": "Hospital Universitario de Caracas",
+    "tipo": "hospital"
+  },
+  {
+    "slug": "cruz-roja",
+    "nombre": "Cruz Roja",
+    "tipo": "hospital"
+  }
+]
