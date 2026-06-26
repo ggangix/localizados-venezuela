@@ -37,6 +37,7 @@ export function SearchForm({
         aria-label="Buscar localizado"
         enterKeyHint="search"
         autoComplete="off"
+        required
       />
       <button
         type="submit"
