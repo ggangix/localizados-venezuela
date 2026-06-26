@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0284c7",
+  themeColor: "#0891b2",
 };
 
 export const metadata: Metadata = {
@@ -41,7 +41,7 @@ export default function RootLayout({
         <GoogleAnalytics />
         <DisclaimerBanner />
         <SiteHeader />
-        <main className="mx-auto min-h-[70vh] max-w-5xl px-3 py-5 pb-24 sm:px-4 sm:py-8 sm:pb-8">
+        <main className="mx-auto min-h-[70vh] max-w-5xl px-3 py-4 pb-24 sm:px-4 sm:py-7 sm:pb-8">
           {children}
         </main>
         <SiteFooter />

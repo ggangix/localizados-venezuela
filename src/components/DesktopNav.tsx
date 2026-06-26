@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { analytics } from "@/lib/analytics";
 
 const links = [
@@ -12,18 +13,31 @@ const links = [
 ];
 
 export function DesktopNav() {
+  const pathname = usePathname();
+
   return (
-    <nav className="hidden gap-4 text-sm font-medium text-slate-600 md:flex">
-      {links.map((link) => (
-        <Link
-          key={link.href}
-          href={link.href}
-          onClick={() => analytics.navigation(link.href, "desktop")}
-          className="rounded-lg px-2 py-1 hover:bg-slate-100 hover:text-brand-600"
-        >
-          {link.label}
-        </Link>
-      ))}
+    <nav
+      className="hidden gap-1 text-sm font-semibold text-brand-800 md:flex"
+      aria-label="Navegación principal"
+    >
+      {links.map((link) => {
+        const active =
+          link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            onClick={() => analytics.navigation(link.href, "desktop")}
+            className={`cursor-pointer rounded-full px-3 py-2 outline-none transition-colors duration-200 focus:ring-4 focus:ring-brand-200 ${
+              active
+                ? "bg-brand-100 text-brand-900"
+                : "hover:bg-brand-50 hover:text-brand-900"
+            }`}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

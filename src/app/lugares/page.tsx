@@ -15,13 +15,18 @@ export default async function LugaresPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Lugares</h1>
-        <p className="mt-2 text-slate-600">
+      <section className="rounded-2xl border border-brand-100 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-700">
+          Índice de lugares
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-brand-950">
+          Lugares
+        </h1>
+        <p className="mt-2 text-brand-800">
           Hospitales, recintos, direcciones y otros sitios donde se han localizado
           personas.
         </p>
-      </div>
+      </section>
 
       <ShareButtons
         variant="full"

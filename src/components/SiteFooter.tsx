@@ -38,17 +38,17 @@ const socialLinks = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-12 border-t border-slate-200 bg-slate-50">
+    <footer className="mt-12 border-t border-brand-100 bg-white/70">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 text-center">
-          <p className="flex items-center justify-center gap-1 text-sm text-slate-500">
+          <p className="flex items-center justify-center gap-1 text-sm text-brand-700">
             Creado por <Heart className="h-4 w-4 text-red-500" aria-hidden />
             <a
               href="https://ggangi.com"
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => analytics.outboundClick("https://ggangi.com", "ggangi")}
-              className="font-medium text-slate-900 hover:underline"
+              className="font-medium text-brand-950 hover:underline"
             >
               Giuseppe Gangi
             </a>
@@ -63,7 +63,7 @@ export function SiteFooter() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => analytics.outboundClick(href, `social_${name}`)}
-              className="text-slate-500 transition-colors hover:text-brand-600"
+              className="text-brand-700 transition-colors hover:text-brand-900"
               aria-label={name}
             >
               <Icon className="h-5 w-5" />
@@ -90,7 +90,7 @@ export function SiteFooter() {
         </div>
 
         <div className="text-center">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-brand-700">
             Proyecto de código abierto •{" "}
             <a
               href={GITHUB_REPO}
@@ -102,13 +102,13 @@ export function SiteFooter() {
               Ver en GitHub
             </a>
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-brand-700">
             Código: MIT • Datos: fuentes públicas y contribuciones ciudadanas
           </p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-brand-700/70">
             Solo registra personas ya localizadas — no es para reportar desaparecidos.
             Para reportar desaparecidos:{" "}
-            <DesaparecidosLink className="text-slate-500 underline hover:text-brand-600" />
+            <DesaparecidosLink className="text-brand-700 underline hover:text-brand-900" />
             . Proyecto independiente, no afiliado a ninguna entidad gubernamental.
           </p>
         </div>

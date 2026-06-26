@@ -100,7 +100,7 @@ export function ShareButtons({
   ];
 
   const iconBtn =
-    "inline-flex h-11 min-w-11 items-center justify-center rounded-xl transition active:scale-95";
+    "inline-flex h-11 min-w-11 cursor-pointer items-center justify-center rounded-xl outline-none transition-colors duration-200 focus:ring-4 focus:ring-brand-200";
 
   if (variant === "compact") {
     return (
@@ -134,7 +134,7 @@ export function ShareButtons({
         <button
           type="button"
           onClick={() => void copyLink()}
-          className={`${iconBtn} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50`}
+          className={`${iconBtn} border border-brand-100 bg-white text-brand-700 hover:bg-brand-50`}
           aria-label="Copiar enlace"
         >
           {copied ? (
@@ -149,20 +149,20 @@ export function ShareButtons({
 
   const wrapperClass =
     variant === "sticky"
-      ? "fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
-      : "rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+      ? "fixed inset-x-0 bottom-0 z-40 border-t border-brand-100 bg-white/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+      : "rounded-2xl border border-brand-100 bg-white p-4 shadow-sm";
 
   return (
     <section className={wrapperClass} aria-label={label}>
       {variant !== "sticky" && (
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">{label}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-brand-800">{label}</h2>
       )}
 
       {canNativeShare && (
         <button
           type="button"
           onClick={() => void nativeShare()}
-          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-base font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-action-600 text-base font-bold text-white transition-colors duration-200 hover:bg-action-700 focus:outline-none focus:ring-4 focus:ring-action-100"
         >
           <Share2 className="h-5 w-5" />
           Compartir
@@ -196,7 +196,7 @@ export function ShareButtons({
         <button
           type="button"
           onClick={() => void copyLink()}
-          className={`${iconBtn} flex-col gap-0.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 ${
+          className={`${iconBtn} flex-col gap-0.5 border border-brand-100 bg-brand-50 text-brand-800 hover:bg-brand-100 ${
             variant === "sticky" ? "h-14 min-w-0 flex-1" : "h-12 w-full"
           }`}
         >
