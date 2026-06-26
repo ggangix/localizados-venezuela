@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { escapeRegex, isSameOriginRequest, jsonResponse } from "@/lib/api";
@@ -6,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import { Contribucion } from "@/lib/models/Contribucion";
 import { Localizado, normalizeNombre } from "@/lib/models/Localizado";
 import { Lugar } from "@/lib/models/Lugar";
+import { checkContributionRateLimit, hashIp } from "@/lib/rate-limit";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 import { makeSlug, makeUniqueSlug } from "@/lib/slug";
 
@@ -19,14 +19,6 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/gif",
   "image/webp",
 ]);
-
-function hashIp(req: Request): string {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-  return createHash("sha256").update(ip).digest("hex").slice(0, 16);
-}
 
 function validateImage(file: File): string | null {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
@@ -44,6 +36,23 @@ export async function POST(req: Request) {
   }
 
   await connectDB();
+  const ipHash = hashIp(req.headers);
+  const rateLimit = await checkContributionRateLimit(ipHash);
+  if (!rateLimit.ok) {
+    return jsonResponse(
+      { error: "Demasiadas solicitudes. Intenta de nuevo en unos segundos." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfter),
+          "X-RateLimit-Limit": String(rateLimit.limit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
+        },
+      }
+    );
+  }
+
   const contentType = req.headers.get("content-type") ?? "";
 
   if (!contentType.includes("multipart/form-data")) {
@@ -99,7 +108,7 @@ export async function POST(req: Request) {
       contacto: contacto || undefined,
       imagenPath: `/uploads/${safeName}`,
       imagenNombreOriginal: file.name,
-      ipHash: hashIp(req),
+      ipHash,
     });
 
     return jsonResponse(
@@ -142,7 +151,7 @@ export async function POST(req: Request) {
         observaciones: String(form.get("observaciones") ?? "").trim() || undefined,
         lugarNombre,
       },
-      ipHash: hashIp(req),
+      ipHash,
     });
 
     let lugar = await Lugar.findOne({
