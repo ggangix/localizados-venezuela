@@ -16,7 +16,10 @@ import type {
   LugarTipo,
 } from "@/lib/types";
 
-const PUBLISHED = { estado: "published" as const };
+const PUBLISHED = {
+  estado: "published" as const,
+  $or: [{ deletedAt: { $exists: false } }, { deletedAt: null }],
+};
 
 /** Valida/normaliza filtros que llegan como string crudo desde la URL. */
 export function coerceCondicion(v?: string | null): CondicionPersona | undefined {

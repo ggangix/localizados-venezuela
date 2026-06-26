@@ -12,13 +12,14 @@
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check",
     "prepare": "husky",
-    "seed": "tsx --env-file=.env scripts/seed-from-json.ts",
-    "seed:sample": "tsx --env-file=.env scripts/seed-from-json.ts --sample",
-    "seed:excel": "tsx --env-file=.env scripts/seed-from-excel.ts",
-    "seed:ocr": "tsx --env-file=.env scripts/seed-from-ocr-md.ts",
-    "seed:export": "tsx --env-file=.env scripts/export-seed-json.ts",
-    "merge": "tsx --env-file=.env scripts/merge-duplicates.ts",
-    "migrate:text-index": "tsx --env-file=.env scripts/migrate-text-index.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed-from-json.ts",
+    "seed:sample": "tsx --env-file=.env.local scripts/seed-from-json.ts --sample",
+    "seed:excel": "tsx --env-file=.env.local scripts/seed-from-excel.ts",
+    "seed:ocr": "tsx --env-file=.env.local scripts/seed-from-ocr-md.ts",
+    "seed:export": "tsx --env-file=.env.local scripts/export-seed-json.ts",
+    "merge": "tsx --env-file=.env.local scripts/merge-duplicates.ts",
+    "admin:secret": "tsx scripts/create-admin-secret.ts",
+    "migrate:text-index": "tsx --env-file=.env.local scripts/migrate-text-index.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [

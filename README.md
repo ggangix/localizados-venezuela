@@ -12,7 +12,8 @@ Registro **open source y colaborativo** de personas **ya localizadas** tras el s
 - Búsqueda de personas localizadas por nombre, cédula u observación
 - Una **página por persona** (`/localizados/{slug}`) y **por lugar** (`/lugares/{slug}`)
 - **API pública** de lectura para integraciones
-- Formulario para contribuir localizados o fotos de listados (fase 1: quedan en cola `pending`)
+- Formulario para contribuir localizados o fotos de listados (quedan en cola `pending` hasta moderación)
+- **Panel de moderación** (`/admin`) para aprobar contribuciones, OCR de imágenes, CRUD de personas y acciones masivas
 - Botones para compartir en WhatsApp, Telegram, X, etc.
 
 ## Requisitos
@@ -27,11 +28,11 @@ Registro **open source y colaborativo** de personas **ya localizadas** tras el s
 git clone https://github.com/ggangix/localizados-venezuela.git
 cd localizados-venezuela
 npm install
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-> Usa `.env` (no `.env.local`). Tanto Next.js (`npm run dev`) como los scripts de seed
-> leen `.env`. El archivo está en `.gitignore`, así que tus credenciales no se suben.
+> Usa `.env.local`. Tanto Next.js (`npm run dev`) como los scripts de seed (vía
+> `tsx --env-file=.env.local`) lo leen. Está en `.gitignore`, así que tus credenciales no se suben.
 
 Levanta MongoDB. Dos opciones comunes:
 
@@ -46,7 +47,7 @@ docker run -d --name mongo -p 27017:27017 \
   mongo:7
 ```
 
-Si usas la opción **B (Docker con autenticación)**, tu `MONGODB_URI` en `.env` debe llevar
+Si usas la opción **B (Docker con autenticación)**, tu `MONGODB_URI` en `.env.local` debe llevar
 las credenciales **y** `?authSource=admin` (el usuario `root` vive en la base `admin`):
 
 ```env
@@ -62,16 +63,99 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000).
 
-### Variables de entorno (`.env`)
+### Variables de entorno (`.env.local`)
 
-| Variable                         | Descripción                                                      | Ejemplo local                                     |
-| -------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------- |
-| `MONGODB_URI`                    | Conexión a MongoDB (con `?authSource=admin` si Mongo tiene auth) | `mongodb://127.0.0.1:27017/localizados_venezuela` |
-| `NEXT_PUBLIC_SITE_URL`           | URL base del sitio (SEO, compartir)                              | `http://localhost:3000`                           |
-| `UPLOAD_DIR`                     | Carpeta para imágenes subidas                                    | `./public/uploads`                                |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Site key pública de reCAPTCHA v3                                 | Ver `.env.example`                                |
-| `RECAPTCHA_SECRET`               | Secret de reCAPTCHA v3 (solo servidor)                           | Desde Google reCAPTCHA admin                      |
-| `NEXT_PUBLIC_GA_MEASUREMENT_ID`  | ID de Google Analytics 4                                         | `G-GNN3P1WQW4`                                    |
+| Variable                         | Descripción                                                      | Ejemplo local                                                 |
+| -------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
+| `MONGODB_URI`                    | Conexión a MongoDB (con `?authSource=admin` si Mongo tiene auth) | `mongodb://127.0.0.1:27017/localizados_venezuela`             |
+| `NEXT_PUBLIC_SITE_URL`           | URL base del sitio (SEO, compartir)                              | `http://localhost:3000`                                       |
+| `UPLOAD_DIR`                     | Carpeta para imágenes subidas                                    | `./public/uploads`                                            |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Site key pública de reCAPTCHA v3                                 | Ver `.env.example`                                            |
+| `RECAPTCHA_SECRET`               | Secret de reCAPTCHA v3 (solo servidor)                           | Desde Google reCAPTCHA admin                                  |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID`  | ID de Google Analytics 4                                         | `G-GNN3P1WQW4`                                                |
+| `ADMIN_SECRET`                   | Clave(s) del panel `/admin` (coma = varios moderadores)          | Generar con `npm run admin:secret`                            |
+| `OPENAI_API_KEY`                 | OCR de imágenes en el panel (OpenAI Vision)                      | `sk-...` desde [OpenAI](https://platform.openai.com/api-keys) |
+| `OPENAI_OCR_MODEL`               | Modelo Vision (opcional)                                         | `gpt-4o-mini` (default)                                       |
+
+## Panel de moderación (fase 2)
+
+Las contribuciones en `/contribuir` se guardan como `pending`. El panel permite publicarlas, rechazarlas o procesar imágenes con OCR.
+
+**URL:** `/admin` → redirige a `/admin/login` si no hay sesión.
+
+### Configurar acceso
+
+```bash
+# Genera una clave segura
+npm run admin:secret
+
+# Añadir otro moderador (varias claves separadas por coma)
+npm run admin:secret -- --append
+```
+
+Copia el valor a `.env.local`:
+
+```env
+ADMIN_SECRET=tu_clave_generada
+OPENAI_API_KEY=sk-...   # opcional, para OCR de imágenes
+```
+
+Sin `ADMIN_SECRET` el panel **no es accesible** (middleware devuelve 503 / redirige al inicio).
+
+### Qué puede hacer un moderador
+
+| Área               | Acciones                                                                         |
+| ------------------ | -------------------------------------------------------------------------------- |
+| **Contribuciones** | Ver `pending` (persona e imagen), editar campos, aprobar → `published`, rechazar |
+| **OCR (imágenes)** | Extraer tabla con OpenAI Vision, revisar filas, asignar hospital, crear personas |
+| **Hospitales**     | Elegir lugar existente o crear uno nuevo al aprobar/importar                     |
+| **Personas**       | CRUD completo, soft delete (`deletedAt`), restaurar, mover de hospital           |
+| **Masivo**         | Seleccionar todo, borrar, restaurar, publicar, mover a otro lugar                |
+
+### Flujo típico
+
+1. Ciudadano envía en `/contribuir` (persona o foto de listado).
+2. Moderador entra en `/admin` → pestaña **Contribuciones**.
+3. **Persona:** revisar datos, asignar hospital, **Aprobar** → visible en `/buscar`.
+4. **Imagen:** **Extraer tabla con OpenAI OCR** → elegir hospital → **Crear personas** (pending o published) → **Aprobar** contribución.
+
+### API admin (protegida)
+
+Requiere cookie de sesión (`lv_admin`) o header `Authorization: Bearer <ADMIN_SECRET>`.
+
+| Método       | Ruta                                 | Descripción                                                         |
+| ------------ | ------------------------------------ | ------------------------------------------------------------------- |
+| POST         | `/api/admin/auth/login`              | Iniciar sesión                                                      |
+| POST         | `/api/admin/auth/logout`             | Cerrar sesión                                                       |
+| GET          | `/api/admin/contribuciones`          | Listar contribuciones                                               |
+| PATCH        | `/api/admin/contribuciones/{id}`     | Aprobar / rechazar                                                  |
+| POST         | `/api/admin/contribuciones/{id}/ocr` | Extraer (`extract`) o importar (`import`) filas OCR                 |
+| GET/POST     | `/api/admin/localizados`             | Listar / crear personas                                             |
+| PATCH/DELETE | `/api/admin/localizados/{id}`        | Editar / soft delete                                                |
+| POST         | `/api/admin/localizados/bulk`        | Acciones masivas (`delete`, `restore`, `move`, `publish`, `reject`) |
+| GET/POST     | `/api/admin/lugares`                 | Listar / crear hospitales                                           |
+
+### Producción (Docker)
+
+En `docker-compose.yaml` del stack de despliegue:
+
+```yaml
+environment:
+  - ADMIN_SECRET=${LOCALIZADOS_ADMIN_SECRET:-}
+  - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+```
+
+En el `.env` del servidor:
+
+```env
+LOCALIZADOS_ADMIN_SECRET=clave_generada_con_admin_secret
+OPENAI_API_KEY=sk-...
+```
+
+```bash
+docker compose build localizados-venezuela
+docker compose up -d localizados-venezuela
+```
 
 ## Datos de prueba (seed)
 
@@ -84,17 +168,17 @@ npm run seed          # dataset completo si existe seed/lugares.json
 
 Si clonas el repo y solo existe `sample/`, `npm run seed` usa ese subset automáticamente.
 
-**Cómo se conecta el seed:** los scripts corren con `tsx --env-file=.env`, así que
-leen `MONGODB_URI` de tu archivo `.env`. Asegúrate de tenerlo creado
-(`cp .env.example .env`) **antes** de correr el seed.
+**Cómo se conecta el seed:** los scripts corren con `tsx --env-file=.env.local`, así que
+leen `MONGODB_URI` de tu archivo `.env.local`. Asegúrate de tenerlo creado
+(`cp .env.example .env.local`) **antes** de correr el seed.
 
 > ⚠️ **Error `Command findAndModify requires authentication` (code 13 / Unauthorized)**
 > Significa que el seed se conectó a Mongo **sin credenciales**. Causas típicas:
 >
-> 1. No existe `.env` o no define `MONGODB_URI` → el script usa el default sin usuario/clave.
+> 1. No existe `.env.local` o no define `MONGODB_URI` → el script usa el default sin usuario/clave.
 > 2. Tu Mongo tiene autenticación (Docker) pero la URI no lleva `?authSource=admin`.
 >
-> Solución: pon en `.env` la URI completa, p. ej.
+> Solución: pon en `.env.local` la URI completa, p. ej.
 > `mongodb://root:123456@localhost:27017/localizados_venezuela?authSource=admin`.
 
 Más detalle en [`seed/README.md`](seed/README.md).
@@ -136,6 +220,7 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 | `npm run seed:ocr`         | Importa tablas `.md` del repo OCR (sin duplicar)   |
 | `npm run merge`            | Dry-run: fusiona lugares/personas duplicadas       |
 | `npm run merge -- --apply` | Aplica la fusión en MongoDB                        |
+| `npm run admin:secret`     | Genera `ADMIN_SECRET` para el panel de moderación  |
 
 ## Scripts de desarrollo
 
@@ -181,8 +266,8 @@ GitHub Actions ejecuta en cada PR:
 ### Ideas para contribuir
 
 - Mejorar búsqueda y deduplicación
-- Panel de moderación (fase 2)
 - Nuevas transcripciones en el [repo OCR](https://github.com/ecrespo/OCR-data_Terremoto_Venezuela_24062026) + `npm run seed:ocr`
+- Mejoras al panel de moderación (roles, historial de cambios, etc.)
 - Traducciones, accesibilidad, rendimiento móvil
 - Documentación de la API
 - Reportar bugs con datos de ejemplo en `seed/sample/`
@@ -191,19 +276,24 @@ GitHub Actions ejecuta en cada PR:
 
 ```
 src/
-├── app/              # Páginas y rutas API (Next.js App Router)
-├── components/       # UI (header, footer, share, formularios…)
-└── lib/              # DB, queries, modelos, utilidades
+├── app/
+│   ├── admin/        # Panel de moderación (login + dashboard)
+│   └── api/
+│       ├── admin/    # API protegida (contribuciones, personas, OCR)
+│       └── v1/       # API pública de lectura
+├── components/
+│   └── admin/        # AdminPanel, LoginForm
+└── lib/              # DB, queries, modelos, admin-auth, ocr-openai
+middleware.ts         # Protege /admin y /api/admin
 scripts/
-├── seed-from-json.ts   # Importar seed al clonar
+├── create-admin-secret.ts
+├── seed-from-json.ts
 ├── seed-from-excel.ts
-├── seed-from-ocr-md.ts # Importar .md del repo OCR
-├── lib/ocr-md-parser.ts
-├── lib/ocr-lugares.ts
-├── export-seed-json.ts
+├── seed-from-ocr-md.ts
+├── list-lugares.ts
 └── merge-duplicates.ts
 seed/
-└── sample/           # Datos de prueba commiteados
+└── sample/
 ```
 
 ## API pública (v1)
@@ -226,18 +316,18 @@ Documentación interactiva en `/api` cuando el sitio está corriendo.
 ## Modelo de datos
 
 ```
-Lugar       → slug, nombre, tipo (hospital|recinto|direccion|otro)
-Localizado  → persona, lugarId, fuente, estado (published|pending|rejected)
-Contribucion → envíos ciudadanos (persona o imagen de listado)
+Lugar        → slug, nombre, tipo (hospital|recinto|direccion|otro)
+Localizado   → persona, lugarId, fuente, estado (published|pending|rejected), deletedAt (soft delete)
+Contribucion → envíos ciudadanos (persona o imagen de listado), moderadoEn/Por
 ```
 
 ## Roadmap
 
-| Fase                                                                  | Estado |
-| --------------------------------------------------------------------- | ------ |
-| Seed, búsqueda, páginas individuales, API, contribuciones en cola     | ✅     |
-| Importación OCR desde Markdown (`seed:ocr`)                           | ✅     |
-| Moderación, OCR automático de imágenes, publicación de contribuciones | 🔜     |
+| Fase                                                              | Estado |
+| ----------------------------------------------------------------- | ------ |
+| Seed, búsqueda, páginas individuales, API, contribuciones en cola | ✅     |
+| Importación OCR desde Markdown (`seed:ocr`)                       | ✅     |
+| Panel de moderación, OCR de imágenes (OpenAI), CRUD y publicación | ✅     |
 
 ## Stack
 
