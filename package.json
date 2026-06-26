@@ -17,7 +17,8 @@
     "seed:excel": "tsx scripts/seed-from-excel.ts",
     "seed:ocr": "tsx scripts/seed-from-ocr-md.ts",
     "seed:export": "tsx scripts/export-seed-json.ts",
-    "merge": "tsx scripts/merge-duplicates.ts"
+    "merge": "tsx scripts/merge-duplicates.ts",
+    "admin:secret": "tsx scripts/create-admin-secret.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [

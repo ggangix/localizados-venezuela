@@ -9,7 +9,10 @@ import type {
 import { toLocalizadoDTO, toLugarDTO } from "@/lib/serializers";
 import type { ApiListResponse, LocalizadoDTO, LugarDTO } from "@/lib/types";
 
-const PUBLISHED = { estado: "published" as const };
+const PUBLISHED = {
+  estado: "published" as const,
+  $or: [{ deletedAt: { $exists: false } }, { deletedAt: null }],
+};
 
 const LIST_PROJECTION = {
   slug: 1,

@@ -37,6 +37,10 @@ const LUGAR_MERGES: { canonical: string; aliases: string[] }[] = [
     canonical: "Hospital Ana Francisca Pérez de León 2",
     aliases: ["Hospital Ana Francisca Pérez de"],
   },
+  {
+    canonical: "Hospital Miguel Pérez Carreño",
+    aliases: ["Hospital Pérez Carreño"],
+  },
 ];
 
 type LugarRow = {
@@ -223,24 +227,21 @@ async function mergeLugares(
         const dropPerson = keepPerson._id.equals(person._id) ? conflict : person;
 
         if (APPLY) {
-          await Localizado.updateOne(
-            { _id: keepPerson._id },
-            {
-              $set: {
-                lugarId: keep._id,
-                edad: keepPerson.edad || dropPerson.edad,
-                cedula: keepPerson.cedula || dropPerson.cedula,
-                telefono: keepPerson.telefono || dropPerson.telefono,
-                direccion: keepPerson.direccion || dropPerson.direccion,
-                observaciones: keepPerson.observaciones || dropPerson.observaciones,
-                condicion:
-                  keepPerson.condicion !== "desconocido"
-                    ? keepPerson.condicion
-                    : dropPerson.condicion,
-              },
-            }
-          );
+          const merged = {
+            lugarId: keep._id,
+            edad: keepPerson.edad || dropPerson.edad,
+            cedula: keepPerson.cedula || dropPerson.cedula,
+            telefono: keepPerson.telefono || dropPerson.telefono,
+            direccion: keepPerson.direccion || dropPerson.direccion,
+            observaciones: keepPerson.observaciones || dropPerson.observaciones,
+            condicion:
+              keepPerson.condicion !== "desconocido"
+                ? keepPerson.condicion
+                : dropPerson.condicion,
+          };
+          // Borrar primero para no violar índice único (lugarId + nombreNormalizado)
           await Localizado.deleteOne({ _id: dropPerson._id });
+          await Localizado.updateOne({ _id: keepPerson._id }, { $set: merged });
         }
         personsRemoved++;
         log(

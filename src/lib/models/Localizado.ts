@@ -40,6 +40,8 @@ const localizadoSchema = new Schema(
       index: true,
     },
     contribucionId: { type: Schema.Types.ObjectId, ref: "Contribucion" },
+    deletedAt: { type: Date, index: true },
+    deletedBy: String,
   },
   { timestamps: true }
 );
