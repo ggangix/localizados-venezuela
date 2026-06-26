@@ -23,12 +23,15 @@ export function shareLugar(slug: string, nombre: string, total: number) {
   };
 }
 
-export function shareBusqueda(query: string) {
-  const url = absoluteUrl(`/buscar?q=${encodeURIComponent(query)}`);
+export function shareBusqueda(query: string, lugar?: string) {
+  const sp = new URLSearchParams();
+  if (query) sp.set("q", query);
+  if (lugar) sp.set("lugar", lugar);
+  const url = absoluteUrl(`/buscar?${sp.toString()}`);
   return {
     url,
-    title: `Buscar: ${query}`,
-    text: `Resultados de localizados para «${query}» tras el sismo en Venezuela.`,
+    title: `Buscar: ${query || (lugar ?? "")}`,
+    text: `Resultados de localizados para «${query || (lugar ?? "")}» tras el sismo en Venezuela.`,
   };
 }
 
