@@ -14,6 +14,7 @@ import path from "path";
 import mongoose from "mongoose";
 import { Lugar } from "../src/lib/models/Lugar";
 import { Localizado, normalizeNombre } from "../src/lib/models/Localizado";
+import { recordPublishedLocalizadoEvents } from "../src/lib/notifications";
 import { makeSlug, makeUniqueSlug } from "../src/lib/slug";
 import { parseMarkdownFile } from "./lib/ocr-md-parser";
 import {
@@ -30,6 +31,7 @@ const CONNECT_TIMEOUT_MS = 15_000;
 const BATCH_SIZE = 500;
 
 const DRY_RUN = process.argv.includes("--dry-run");
+const IMPORT_RUN_ID = `ocr-seed-${new Date().toISOString()}`;
 const pathFlagIdx = process.argv.indexOf("--path");
 const OCR_PATH = path.resolve(
   process.cwd(),
@@ -149,10 +151,23 @@ async function flushBatch(batch: Record<string, unknown>[], label: string) {
   const started = Date.now();
   try {
     const res = await Localizado.insertMany(batch, { ordered: false });
+    await recordPublishedLocalizadoEvents(res, {
+      source: "ocr_seed",
+      importRunId: IMPORT_RUN_ID,
+      notifySavedSearches: false,
+    });
     log(`  ↑ Lote ${label}: ${res.length} insertados (${elapsed(started)})`);
   } catch (err: unknown) {
     const bulk = err as { insertedDocs?: unknown[] };
     if (bulk.insertedDocs) {
+      await recordPublishedLocalizadoEvents(
+        bulk.insertedDocs as Parameters<typeof recordPublishedLocalizadoEvents>[0],
+        {
+          source: "ocr_seed",
+          importRunId: IMPORT_RUN_ID,
+          notifySavedSearches: false,
+        }
+      );
       const inserted = bulk.insertedDocs.length;
       const dupes = batch.length - inserted;
       log(
