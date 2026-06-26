@@ -25,12 +25,12 @@ export default async function BuscarPage({
 
   const [lugares, result] = await Promise.all([
     listLugares(),
-    q || lugarSlug
-      ? searchLocalizados({ q, lugar: lugarSlug || undefined, page, limit: 20 })
-      : Promise.resolve({
-          data: [],
-          meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
-        }),
+    searchLocalizados({
+      q: q || undefined,
+      lugar: lugarSlug || undefined,
+      page,
+      limit: 20,
+    }),
   ]);
 
   const lugarNombre = lugarSlug
@@ -58,32 +58,41 @@ export default async function BuscarPage({
             query={q || (lugarNombre ?? "")}
             total={result.meta.total}
           />
-          <p className="text-sm text-slate-500">
-            {result.meta.total} resultado{result.meta.total === 1 ? "" : "s"}
-            {q && <> para &ldquo;{q}&rdquo;</>}
-            {lugarNombre && (
-              <>
-                {" "}
-                en <strong>{lugarNombre}</strong>
-              </>
-            )}
-          </p>
           <ShareButtons
             variant="full"
             {...shareBusqueda(q, lugarSlug)}
-            label="Compartir esta búsqueda"
+            label="Compartir esta busqueda"
             contentType="search"
           />
         </>
+      )}
+
+      {hasFilter && (
+        <p className="text-sm text-slate-500">
+          {result.meta.total} resultado{result.meta.total === 1 ? "" : "s"}
+          {q && <> para &ldquo;{q}&rdquo;</>}
+          {lugarNombre && (
+            <>
+              {" "}
+              en <strong>{lugarNombre}</strong>
+            </>
+          )}
+        </p>
+      )}
+
+      {!hasFilter && result.meta.total > 0 && (
+        <p className="text-sm text-slate-500">
+          Mostrando {result.data.length} de {result.meta.total} localizados publicados.
+        </p>
       )}
 
       <div className="grid gap-3">
         {result.data.map((item) => (
           <LocalizadoCard key={item.slug} item={item} />
         ))}
-        {hasFilter && result.data.length === 0 && (
+        {result.data.length === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-500">
-            No hay resultados publicados. Si la persona está <strong>localizada</strong>
+            No hay resultados publicados. Si la persona esta <strong>localizada</strong>
             , puedes{" "}
             <a href="/contribuir" className="text-brand-600 underline">
               contribuir
