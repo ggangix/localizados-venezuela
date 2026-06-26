@@ -10,7 +10,7 @@ const contribucionSchema = new Schema(
     },
     estado: {
       type: String,
-      enum: ["pending", "approved", "rejected"] satisfies EstadoPublicacion[],
+      enum: ["pending", "published", "rejected"] satisfies EstadoPublicacion[],
       default: "pending",
       index: true,
     },
