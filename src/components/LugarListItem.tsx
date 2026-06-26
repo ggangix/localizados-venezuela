@@ -16,7 +16,7 @@ export function LugarListItem({ lugar }: { lugar: LugarDTO }) {
         onClick={() => analytics.selectLugar(lugar.slug)}
         className="flex min-w-0 flex-1 items-center justify-between gap-3 active:bg-slate-50"
       >
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-[150px] md:max-w-full">
           <h2 className="truncate font-semibold text-slate-900">{lugar.nombre}</h2>
           <p className="text-sm capitalize text-slate-500">{lugar.tipo}</p>
         </div>

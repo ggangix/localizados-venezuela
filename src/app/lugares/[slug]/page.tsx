@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LocalizadoCard } from "@/components/LocalizadoCard";
 import { ShareButtons } from "@/components/ShareButtons";
+import { GoBackButton } from "@/components/GoBackButton";
 import { getLugarBySlug } from "@/lib/queries";
 import { absoluteUrl, shareLugar } from "@/lib/share";
 
@@ -35,6 +36,7 @@ export default async function LugarPage({ params }: Props) {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
+        <GoBackButton route="/lugares" />
         <p className="text-sm font-medium uppercase tracking-wide text-brand-600">
           {lugar.tipo}
         </p>
