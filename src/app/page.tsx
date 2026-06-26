@@ -3,11 +3,11 @@ export const dynamic = "force-dynamic";
 import { HomeActionCards } from "@/components/HomeActionCards";
 import { SearchForm } from "@/components/SearchForm";
 import { ShareButtons } from "@/components/ShareButtons";
-import { getStats } from "@/lib/queries";
+import { getStats, listLugares } from "@/lib/queries";
 import { shareSitio } from "@/lib/share";
 
 export default async function HomePage() {
-  const stats = await getStats();
+  const [stats, lugares] = await Promise.all([getStats(), listLugares()]);
   const share = shareSitio();
 
   return (
@@ -25,7 +25,7 @@ export default async function HomePage() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-xl font-semibold">Buscar localizado</h2>
-        <SearchForm source="home" />
+        <SearchForm source="home" lugares={lugares} />
       </section>
 
       <ShareButtons
