@@ -29,7 +29,7 @@ export class UnauthorizedError extends ApiError {
 }
 
 export class RateLimitError extends ApiError {
-  constructor() {
-    super(429, "Demasiadas solicitudes", "RATE_LIMIT");
+  constructor(message = "Demasiadas solicitudes") {
+    super(429, message, "RATE_LIMIT");
   }
 }
