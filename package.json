@@ -18,7 +18,8 @@
     "seed:ocr": "tsx scripts/seed-from-ocr-md.ts",
     "seed:export": "tsx scripts/export-seed-json.ts",
     "merge": "tsx scripts/merge-duplicates.ts",
-    "admin:secret": "tsx scripts/create-admin-secret.ts"
+    "admin:secret": "tsx scripts/create-admin-secret.ts",
+    "webpush:keys": "tsx scripts/create-vapid-keys.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [
@@ -38,9 +39,11 @@
     "react-dom": "^19.0.0",
     "react-icons": "^5.4.0",
     "slugify": "^1.6.6",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/web-push": "^3.6.4",
     "@eslint/eslintrc": "^3.2.0",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.2",

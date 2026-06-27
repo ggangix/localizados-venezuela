@@ -12,6 +12,7 @@ import mongoose from "mongoose";
 import * as XLSX from "xlsx";
 import { Lugar } from "../src/lib/models/Lugar";
 import { Localizado, normalizeNombre } from "../src/lib/models/Localizado";
+import { recordPublishedLocalizadoEvents } from "../src/lib/notifications";
 import { makeSlug, makeUniqueSlug } from "../src/lib/slug";
 
 const MONGODB_URI =
@@ -19,6 +20,7 @@ const MONGODB_URI =
 
 const CONNECT_TIMEOUT_MS = 15_000;
 const BATCH_SIZE = 500;
+const IMPORT_RUN_ID = `excel-import-${new Date().toISOString()}`;
 const PROGRESS_EVERY = 100;
 
 const FUENTE = {
@@ -260,10 +262,23 @@ async function flushBatch(batch: Record<string, unknown>[], label: string) {
   const started = Date.now();
   try {
     const res = await Localizado.insertMany(batch, { ordered: false });
+    await recordPublishedLocalizadoEvents(res, {
+      source: "excel_import",
+      importRunId: IMPORT_RUN_ID,
+      notifySavedSearches: false,
+    });
     log(`  ↑ Lote ${label}: ${res.length} insertados (${elapsed(started)})`);
   } catch (err: unknown) {
     const bulk = err as { insertedDocs?: unknown[]; writeErrors?: unknown[] };
     if (bulk.insertedDocs) {
+      await recordPublishedLocalizadoEvents(
+        bulk.insertedDocs as Parameters<typeof recordPublishedLocalizadoEvents>[0],
+        {
+          source: "excel_import",
+          importRunId: IMPORT_RUN_ID,
+          notifySavedSearches: false,
+        }
+      );
       const inserted = bulk.insertedDocs.length;
       const dupes = batch.length - inserted;
       log(

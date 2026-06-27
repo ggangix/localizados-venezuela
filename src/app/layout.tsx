@@ -25,6 +25,19 @@ export const metadata: Metadata = {
   },
   description:
     "Registro abierto y colaborativo de personas localizadas tras el sismo en Venezuela. Solo localizados — no para reportar desaparecidos.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Localizados",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
   openGraph: {
     type: "website",
     locale: "es_VE",
