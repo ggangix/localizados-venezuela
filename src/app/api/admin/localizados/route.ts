@@ -7,6 +7,8 @@ import { escapeRegex } from "@/lib/api";
 import { Localizado } from "@/lib/models/Localizado";
 import { Lugar } from "@/lib/models/Lugar";
 import { safeJsonParseBody } from "@/lib/safe-json";
+import { ValidationError } from "@/lib/errors";
+import mongoose from "mongoose";
 import type { PersonaInput } from "@/lib/admin-localizado";
 
 export const GET = withErrorHandler(async (req: Request) => {
@@ -20,6 +22,10 @@ export const GET = withErrorHandler(async (req: Request) => {
     Math.min(200, Math.max(1, Number(url.searchParams.get("limit") ?? 50))) || 50;
   const estado = url.searchParams.get("estado");
   const lugarId = url.searchParams.get("lugarId");
+  // Sin validar, un ?lugarId malformado tira CastError -> 500. Devolvemos 400.
+  if (lugarId && !mongoose.Types.ObjectId.isValid(lugarId)) {
+    throw new ValidationError("lugarId inválido");
+  }
   const q = url.searchParams.get("q")?.trim();
   const deleted = url.searchParams.get("deleted") === "1";
 
