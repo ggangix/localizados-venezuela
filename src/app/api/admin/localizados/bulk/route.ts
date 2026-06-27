@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin-localizado";
 import { safeJsonParseBody } from "@/lib/safe-json";
 import { ValidationError } from "@/lib/errors";
+import mongoose from "mongoose";
 
 export const POST = withErrorHandler(async (req: Request) => {
   const denied = await requireAdmin();
@@ -28,6 +29,14 @@ export const POST = withErrorHandler(async (req: Request) => {
   if (!ids?.length) {
     return jsonResponse({ error: "ids requerido" }, { status: 400 });
   }
+  // `filter(Boolean)` conserva objetos: sin esto, ids como [{ "$ne": null }]
+  // se castean a un operador en el $in y matchean un registro arbitrario
+  // (inyección de operador NoSQL). Exigimos ObjectId string -> 400 limpio.
+  if (
+    !ids.every((id) => typeof id === "string" && mongoose.Types.ObjectId.isValid(id))
+  ) {
+    throw new ValidationError("ids inválidos");
+  }
 
   const body = parsed.data;
 
@@ -43,6 +52,9 @@ export const POST = withErrorHandler(async (req: Request) => {
     case "move": {
       if (!body.lugarId) {
         return jsonResponse({ error: "lugarId requerido" }, { status: 400 });
+      }
+      if (!mongoose.Types.ObjectId.isValid(body.lugarId)) {
+        throw new ValidationError("lugarId inválido");
       }
       const n = await moveLocalizados(ids, body.lugarId);
       return jsonResponse({ ok: true, affected: n });
