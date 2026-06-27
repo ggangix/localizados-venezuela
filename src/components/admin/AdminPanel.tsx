@@ -221,10 +221,7 @@ export function AdminPanel() {
   }
 
   async function logout() {
-    await Promise.race([
-      fetchApi("/api/admin/auth/logout", { method: "POST" }),
-      new Promise<void>((resolve) => setTimeout(resolve, 3000)),
-    ]);
+    await fetchApi("/api/admin/auth/logout", { method: "POST", timeoutMs: 3000 });
     window.location.href = "/admin/login";
   }
 
