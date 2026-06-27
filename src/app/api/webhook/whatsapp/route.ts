@@ -5,23 +5,79 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Intentamos extraer el remitente y el contenido del mensaje de múltiples formatos comunes de APIs de WhatsApp
-    const from =
-      body.from ||
-      body.sender ||
-      body.data?.from ||
-      body.data?.sender ||
-      body.key?.remoteJid ||
-      body.chatId;
+    // Robust parsing for Fzap and standard Evolution API
+    const rawData = body.data || body;
+    const data = Array.isArray(rawData) ? rawData[0] : rawData;
+
+    const message =
+      data?.message ||
+      data?.Message ||
+      body.event?.Message ||
+      body.event?.message ||
+      body.event?.RawMessage ||
+      body.event?.rawMessage;
+
+    let remoteJid = "";
+    let fromMe = false;
+
+    const key = data?.key || data?.Key;
+    if (key) {
+      remoteJid = key.remoteJid || key.remoteJID || "";
+      fromMe = key.fromMe === true;
+    } else {
+      const info = body.event?.Info || body.event?.info;
+      if (info) {
+        const senderAlt = info.SenderAlt || info.senderAlt || "";
+        const sender = info.Sender || info.sender || "";
+        const chat = info.Chat || info.chat || "";
+
+        if (senderAlt && senderAlt.includes("@s.whatsapp.net")) {
+          remoteJid = senderAlt;
+        } else if (sender && sender.includes("@s.whatsapp.net")) {
+          remoteJid = sender;
+        } else if (chat && chat.includes("@s.whatsapp.net")) {
+          remoteJid = chat;
+        } else {
+          remoteJid = chat || sender || senderAlt || info.MessageSource?.Chat || "";
+        }
+
+        fromMe = !!(info.IsFromMe || info.isFromMe || info.MessageSource?.IsFromMe);
+      } else {
+        remoteJid =
+          body.from ||
+          body.sender ||
+          body.data?.from ||
+          body.data?.sender ||
+          body.key?.remoteJid ||
+          body.chatId ||
+          "";
+      }
+    }
+
+    if (fromMe) {
+      return NextResponse.json({ success: true, message: "Ignored self message" });
+    }
+
+    if (remoteJid.endsWith("@g.us")) {
+      return NextResponse.json({ success: true, message: "Ignored group message" });
+    }
+
+    const cleanJid =
+      typeof remoteJid === "string" ? remoteJid.replace(/:[^@]+@/, "@") : "";
+    const from = cleanJid;
 
     const text =
       body.body ||
       body.text ||
       body.message ||
-      body.data?.body ||
-      body.data?.text ||
-      body.data?.message ||
-      body.message?.conversation;
+      data?.body ||
+      data?.text ||
+      data?.message ||
+      message?.conversation ||
+      message?.extendedTextMessage?.text ||
+      message?.ExtendedTextMessage?.text ||
+      message?.extendedTextMessage?.textMessage ||
+      "";
 
     if (!from || !text) {
       console.warn("[WhatsApp Webhook] Datos incompletos recibidos:", { from, text });
