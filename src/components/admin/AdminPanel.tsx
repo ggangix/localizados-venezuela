@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchApi } from "@/lib/fetch-api";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 
 type Lugar = { id: string; nombre: string; slug: string; totalPublicados: number };
@@ -127,14 +127,22 @@ export function AdminPanel() {
 
   const loadLugares = useCallback(async () => {
     const result = await fetchApi<{ data: Lugar[] }>("/api/admin/lugares");
-    if (result.ok) setLugares(result.data.data);
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
+    setLugares(result.data.data);
   }, []);
 
   const loadContrib = useCallback(async () => {
     const result = await fetchApi<{ data: Contrib[] }>(
       "/api/admin/contribuciones?estado=pending"
     );
-    if (result.ok) setContribuciones(result.data.data);
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
+    setContribuciones(result.data.data);
   }, []);
 
   const loadPersonas = useCallback(async () => {
@@ -146,16 +154,20 @@ export function AdminPanel() {
     const result = await fetchApi<{ data: Persona[] }>(
       `/api/admin/localizados?${params}`
     );
-    if (result.ok) setPersonas(result.data.data);
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
+    setPersonas(result.data.data);
   }, [filtroEstado, filtroLugar, filtroQ, verBorrados]);
 
   useEffect(() => {
-    void loadLugares().catch((e) => setErr(String(e)));
+    void loadLugares();
   }, [loadLugares]);
 
   useEffect(() => {
-    if (tab === "contrib") void loadContrib().catch((e) => setErr(String(e)));
-    else void loadPersonas().catch((e) => setErr(String(e)));
+    if (tab === "contrib") void loadContrib();
+    else void loadPersonas();
   }, [tab, loadContrib, loadPersonas]);
 
   const allSelected = useMemo(
@@ -174,7 +186,7 @@ export function AdminPanel() {
     }
     await loadLugares();
     setOcrLugarId(result.data.id);
-    setMsg(`Lugar \u00ab${nombre}\u00bb listo`);
+    setMsg(`Lugar «${nombre}» listo`);
   }
 
   async function bulk(action: string, lugarId?: string) {
@@ -203,15 +215,13 @@ export function AdminPanel() {
       );
       setSelected(new Set());
       await loadPersonas();
-    } catch (e) {
-      setErr(String(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function logout() {
-    await fetch("/api/admin/auth/logout", { method: "POST" });
+    await fetchApi("/api/admin/auth/logout", { method: "POST", timeoutMs: 3000 });
     window.location.href = "/admin/login";
   }
 
@@ -370,8 +380,6 @@ function ContribCard({
         return;
       }
       await onDone();
-    } catch (e) {
-      onError(String(e));
     } finally {
       setBusy(false);
     }
@@ -385,6 +393,7 @@ function ContribCard({
         {
           method: "POST",
           body: JSON.stringify({ action: "extract" }),
+          timeoutMs: 60_000,
         }
       );
       if (!result.ok) {
@@ -392,8 +401,6 @@ function ContribCard({
         return;
       }
       onOcr(contrib.id, result.data.rows ?? []);
-    } catch (e) {
-      onError(String(e));
     } finally {
       setBusy(false);
     }
@@ -545,8 +552,6 @@ function OcrImportModal({
         return;
       }
       await onImported();
-    } catch (e) {
-      onError(String(e));
     } finally {
       setBusy(false);
     }
@@ -864,8 +869,6 @@ function EditPersonaModal({
         return;
       }
       await onSaved();
-    } catch (e) {
-      setError(String(e));
     } finally {
       setBusy(false);
     }
