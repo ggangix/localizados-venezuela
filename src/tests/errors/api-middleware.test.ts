@@ -6,8 +6,6 @@ import {
   UnauthorizedError,
   RateLimitError,
 } from "@/lib/errors";
-import { NextResponse } from "next/server";
-
 vi.mock("next/server", () => {
   const mockJson = vi.fn((body: unknown, init?: ResponseInit) => {
     const status = (init as { status?: number })?.status ?? 200;
