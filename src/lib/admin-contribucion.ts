@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/db";
 import { createLocalizado, resolveLugarId } from "@/lib/admin-localizado";
 import { Contribucion } from "@/lib/models/Contribucion";
 import { Localizado, normalizeNombre } from "@/lib/models/Localizado";
+import { dispatchLocalizadoPublished } from "@/lib/partner-webhook";
 
 export async function approveContribucion(
   id: string,
@@ -55,6 +56,8 @@ export async function approveContribucion(
     localizado.lugarId = lugarId;
     localizado.estado = "published";
     await localizado.save();
+    // El registro nuevo (rama else) ya avisa vía createLocalizado.
+    dispatchLocalizadoPublished(localizado);
   } else {
     localizado = await createLocalizado({
       nombreCompleto: persona.nombreCompleto,

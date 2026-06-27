@@ -141,6 +141,53 @@ docker compose build localizados-venezuela
 docker compose up -d localizados-venezuela
 ```
 
+## Integración con desaparecidos (webhook saliente)
+
+Para **cerrar el ciclo** entre los dos registros hermanos, este proyecto puede avisar
+a [desaparecidosterremotovenezuela.com](https://desaparecidosterremotovenezuela.com/)
+(u otro socio) **cuando se publica un Localizado**, para que el otro sistema marque su
+reporte de desaparecido como encontrado.
+
+- **Saliente y opt-in**: si `DESAPARECIDOS_WEBHOOK_URL` no está configurada, es **no-op**.
+- **No hace scraping**: solo **enviamos** nuestros datos (que ya son públicos vía
+  `/api/v1/localizados`). No leemos su API (está protegida con reCAPTCHA, por diseño).
+  El intercambio de lectura debe coordinarse con su equipo (`developer@theempire.tech`).
+- **Best-effort y no bloqueante**: se dispara en segundo plano; un fallo no afecta al panel.
+- **Firmado**: si defines `DESAPARECIDOS_WEBHOOK_SECRET`, el cuerpo se firma con
+  HMAC-SHA256 en la cabecera `X-LV-Signature` para que el socio verifique autenticidad.
+
+```env
+DESAPARECIDOS_WEBHOOK_URL=https://api-del-socio.example/webhooks/localizados
+DESAPARECIDOS_WEBHOOK_SECRET=un_secreto_compartido
+```
+
+### Cuándo se dispara
+
+Cada vez que un `Localizado` queda **publicado y visible**: al crearlo publicado, al
+**aprobar** una contribución, en la acción masiva **publish** y al importar por OCR.
+
+### Forma del payload (`POST`)
+
+```json
+{
+  "event": "localizado.published",
+  "occurredAt": "2026-06-27T01:23:45.000Z",
+  "source": "localizadosvenezuela.com",
+  "localizado": {
+    "slug": "juan-perez-ab12cd",
+    "url": "https://localizadosvenezuela.com/localizados/juan-perez-ab12cd",
+    "nombreCompleto": "JUAN PEREZ",
+    "nombreNormalizado": "JUAN PEREZ",
+    "cedula": "12345678",
+    "edad": "34",
+    "condicion": "vivo",
+    "lugarNombre": "Hospital Domingo Luciani"
+  }
+}
+```
+
+Archivo clave: `src/lib/partner-webhook.ts`.
+
 ## Datos de prueba (seed)
 
 El repo incluye **`seed/sample/`** para desarrollar sin archivos externos:
