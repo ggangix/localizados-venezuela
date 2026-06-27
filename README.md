@@ -12,7 +12,8 @@ Registro **open source y colaborativo** de personas **ya localizadas** tras el s
 - Búsqueda de personas localizadas por nombre, cédula u observación
 - Una **página por persona** (`/localizados/{slug}`) y **por lugar** (`/lugares/{slug}`)
 - **API pública** de lectura para integraciones
-- Formulario para contribuir localizados o fotos de listados (fase 1: quedan en cola `pending`)
+- Formulario para contribuir localizados o fotos de listados (quedan en cola `pending` hasta moderación)
+- **Panel de moderación** (`/admin`) para aprobar contribuciones, OCR de imágenes, CRUD de personas y acciones masivas
 - Botones para compartir en WhatsApp, Telegram, X, etc.
 
 ## Requisitos
@@ -46,16 +47,131 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000).
 
+## Desarrollo con Docker
+
+Si prefieres no instalar Node.js ni MongoDB localmente, puedes levantar todo el entorno con Docker.
+
+**Requisitos:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (o Docker Engine + Compose).
+
+```bash
+cp .env.example .env.local   # si aún no lo has hecho
+docker compose up --build
+```
+
+Al arrancar, el contenedor:
+
+1. Espera a que MongoDB esté listo
+2. Ejecuta `seed:sample` automáticamente (3 lugares, 12 personas de prueba)
+3. Lanza el servidor de desarrollo con hot reload en [http://localhost:3000](http://localhost:3000)
+
+Los cambios en el código se reflejan en tiempo real — no hace falta reconstruir la imagen.
+
+### Comandos útiles
+
+```bash
+docker compose up --build      # primera vez o tras cambiar dependencias
+docker compose up              # arranques posteriores (sin reconstruir)
+docker compose down            # detener y eliminar contenedores
+docker compose down -v         # ídem + borrar datos de MongoDB
+docker compose exec app npm run seed:sample   # re-sembrar la BD manualmente
+docker compose exec app npm run lint          # linting dentro del contenedor
+```
+
+> **Nota:** el puerto 3000 debe estar libre en tu máquina. Si tienes otro proceso usándolo, detenlo antes de arrancar.
+
 ### Variables de entorno (`.env.local`)
 
-| Variable                         | Descripción                            | Ejemplo local                                     |
-| -------------------------------- | -------------------------------------- | ------------------------------------------------- |
-| `MONGODB_URI`                    | Conexión a MongoDB                     | `mongodb://127.0.0.1:27017/localizados_venezuela` |
-| `NEXT_PUBLIC_SITE_URL`           | URL base del sitio (SEO, compartir)    | `http://localhost:3000`                           |
-| `UPLOAD_DIR`                     | Carpeta para imágenes subidas          | `./public/uploads`                                |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Site key pública de reCAPTCHA v3       | Ver `.env.example`                                |
-| `RECAPTCHA_SECRET`               | Secret de reCAPTCHA v3 (solo servidor) | Desde Google reCAPTCHA admin                      |
-| `NEXT_PUBLIC_GA_MEASUREMENT_ID`  | ID de Google Analytics 4               | `G-GNN3P1WQW4`                                    |
+| Variable                         | Descripción                                             | Ejemplo local                                                 |
+| -------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------- |
+| `MONGODB_URI`                    | Conexión a MongoDB                                      | `mongodb://127.0.0.1:27017/localizados_venezuela`             |
+| `NEXT_PUBLIC_SITE_URL`           | URL base del sitio (SEO, compartir)                     | `http://localhost:3000`                                       |
+| `UPLOAD_DIR`                     | Carpeta para imágenes subidas                           | `./public/uploads`                                            |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Site key pública de reCAPTCHA v3                        | Ver `.env.example`                                            |
+| `RECAPTCHA_SECRET`               | Secret de reCAPTCHA v3 (solo servidor)                  | Desde Google reCAPTCHA admin                                  |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID`  | ID de Google Analytics 4                                | `G-GNN3P1WQW4`                                                |
+| `ADMIN_SECRET`                   | Clave(s) del panel `/admin` (coma = varios moderadores) | Generar con `npm run admin:secret`                            |
+| `OPENAI_API_KEY`                 | OCR de imágenes en el panel (OpenAI Vision)             | `sk-...` desde [OpenAI](https://platform.openai.com/api-keys) |
+| `OPENAI_OCR_MODEL`               | Modelo Vision (opcional)                                | `gpt-4o-mini` (default)                                       |
+
+## Panel de moderación (fase 2)
+
+Las contribuciones en `/contribuir` se guardan como `pending`. El panel permite publicarlas, rechazarlas o procesar imágenes con OCR.
+
+**URL:** `/admin` → redirige a `/admin/login` si no hay sesión.
+
+### Configurar acceso
+
+```bash
+# Genera una clave segura
+npm run admin:secret
+
+# Añadir otro moderador (varias claves separadas por coma)
+npm run admin:secret -- --append
+```
+
+Copia el valor a `.env.local`:
+
+```env
+ADMIN_SECRET=tu_clave_generada
+OPENAI_API_KEY=sk-...   # opcional, para OCR de imágenes
+```
+
+Sin `ADMIN_SECRET` el panel **no es accesible** (middleware devuelve 503 / redirige al inicio).
+
+### Qué puede hacer un moderador
+
+| Área               | Acciones                                                                         |
+| ------------------ | -------------------------------------------------------------------------------- |
+| **Contribuciones** | Ver `pending` (persona e imagen), editar campos, aprobar → `published`, rechazar |
+| **OCR (imágenes)** | Extraer tabla con OpenAI Vision, revisar filas, asignar hospital, crear personas |
+| **Hospitales**     | Elegir lugar existente o crear uno nuevo al aprobar/importar                     |
+| **Personas**       | CRUD completo, soft delete (`deletedAt`), restaurar, mover de hospital           |
+| **Masivo**         | Seleccionar todo, borrar, restaurar, publicar, mover a otro lugar                |
+
+### Flujo típico
+
+1. Ciudadano envía en `/contribuir` (persona o foto de listado).
+2. Moderador entra en `/admin` → pestaña **Contribuciones**.
+3. **Persona:** revisar datos, asignar hospital, **Aprobar** → visible en `/buscar`.
+4. **Imagen:** **Extraer tabla con OpenAI OCR** → elegir hospital → **Crear personas** (pending o published) → **Aprobar** contribución.
+
+### API admin (protegida)
+
+Requiere cookie de sesión (`lv_admin`) o header `Authorization: Bearer <ADMIN_SECRET>`.
+
+| Método       | Ruta                                 | Descripción                                                         |
+| ------------ | ------------------------------------ | ------------------------------------------------------------------- |
+| POST         | `/api/admin/auth/login`              | Iniciar sesión                                                      |
+| POST         | `/api/admin/auth/logout`             | Cerrar sesión                                                       |
+| GET          | `/api/admin/contribuciones`          | Listar contribuciones                                               |
+| PATCH        | `/api/admin/contribuciones/{id}`     | Aprobar / rechazar                                                  |
+| POST         | `/api/admin/contribuciones/{id}/ocr` | Extraer (`extract`) o importar (`import`) filas OCR                 |
+| GET/POST     | `/api/admin/localizados`             | Listar / crear personas                                             |
+| PATCH/DELETE | `/api/admin/localizados/{id}`        | Editar / soft delete                                                |
+| POST         | `/api/admin/localizados/bulk`        | Acciones masivas (`delete`, `restore`, `move`, `publish`, `reject`) |
+| GET/POST     | `/api/admin/lugares`                 | Listar / crear hospitales                                           |
+
+### Producción (Docker)
+
+En `docker-compose.yaml` del stack de despliegue:
+
+```yaml
+environment:
+  - ADMIN_SECRET=${LOCALIZADOS_ADMIN_SECRET:-}
+  - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+```
+
+En el `.env` del servidor:
+
+```env
+LOCALIZADOS_ADMIN_SECRET=clave_generada_con_admin_secret
+OPENAI_API_KEY=sk-...
+```
+
+```bash
+docker compose build localizados-venezuela
+docker compose up -d localizados-venezuela
+```
 
 ## Datos de prueba (seed)
 
@@ -107,36 +223,26 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 | `npm run seed:ocr`         | Importa tablas `.md` del repo OCR (sin duplicar)   |
 | `npm run merge`            | Dry-run: fusiona lugares/personas duplicadas       |
 | `npm run merge -- --apply` | Aplica la fusión en MongoDB                        |
+| `npm run admin:secret`     | Genera `ADMIN_SECRET` para el panel de moderación  |
 
 ## Scripts de desarrollo
 
-| Comando            | Descripción                              |
-| ------------------ | ---------------------------------------- |
-| `npm run dev`      | Servidor de desarrollo                   |
-| `npm run build`    | Build de producción                      |
-| `npm run start`    | Servir build                             |
-| `npm run lint`     | ESLint                                   |
-| `npm run lint:fix` | ESLint con auto-fix                      |
-| `npm run format`   | Prettier                                 |
-| `npm run check`    | lint + format:check (lo que corre el CI) |
-| `npm test`         | Vitest en modo watch (desarrollo)        |
-| `npm run test:run` | Vitest una sola vez (CI)                 |
+| Comando              | Descripción                                     |
+| -------------------- | ----------------------------------------------- |
+| `npm run dev`        | Servidor de desarrollo (local)                  |
+| `npm run dev:docker` | Servidor de desarrollo (Docker, bind `0.0.0.0`) |
+| `npm run build`      | Build de producción                             |
+| `npm run start`      | Servir build                                    |
+| `npm run lint`       | ESLint                                          |
+| `npm run lint:fix`   | ESLint con auto-fix                             |
+| `npm run format`     | Prettier                                        |
+| `npm run check`      | lint + format:check (lo que corre el CI)        |
+| `npm test`           | Vitest en modo watch (desarrollo)               |
+| `npm run test:run`   | Vitest una sola vez (CI)                        |
 
 ## Colaborar
 
-1. Haz fork del repo
-2. Crea una rama: `git checkout -b mi-feature`
-3. Instala y arranca con `npm run seed:sample && npm run dev`
-4. Haz tus cambios
-5. Asegúrate de que pasa el CI localmente:
-
-```bash
-npm run check
-npm run test:run
-npm run build
-```
-
-6. Abre un Pull Request en GitHub
+Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para instrucciones detalladas sobre requisitos, arranque, flujo de trabajo, buenas prácticas y cómo reportar bugs.
 
 ### Estilo de código
 
@@ -166,19 +272,24 @@ GitHub Actions ejecuta en cada PR:
 
 ```
 src/
-├── app/              # Páginas y rutas API (Next.js App Router)
-├── components/       # UI (header, footer, share, formularios…)
-└── lib/              # DB, queries, modelos, utilidades
+├── app/
+│   ├── admin/        # Panel de moderación (login + dashboard)
+│   └── api/
+│       ├── admin/    # API protegida (contribuciones, personas, OCR)
+│       └── v1/       # API pública de lectura
+├── components/
+│   └── admin/        # AdminPanel, LoginForm
+└── lib/              # DB, queries, modelos, admin-auth, ocr-openai
+middleware.ts         # Protege /admin y /api/admin
 scripts/
-├── seed-from-json.ts   # Importar seed al clonar
+├── create-admin-secret.ts
+├── seed-from-json.ts
 ├── seed-from-excel.ts
-├── seed-from-ocr-md.ts # Importar .md del repo OCR
-├── lib/ocr-md-parser.ts
-├── lib/ocr-lugares.ts
-├── export-seed-json.ts
+├── seed-from-ocr-md.ts
+├── list-lugares.ts
 └── merge-duplicates.ts
 seed/
-└── sample/           # Datos de prueba commiteados
+└── sample/
 ```
 
 ## API pública (v1)
@@ -201,18 +312,18 @@ Documentación interactiva en `/api` cuando el sitio está corriendo.
 ## Modelo de datos
 
 ```
-Lugar       → slug, nombre, tipo (hospital|recinto|direccion|otro)
-Localizado  → persona, lugarId, fuente, estado (published|pending|rejected)
-Contribucion → envíos ciudadanos (persona o imagen de listado)
+Lugar        → slug, nombre, tipo (hospital|recinto|direccion|otro)
+Localizado   → persona, lugarId, fuente, estado (published|pending|rejected), deletedAt (soft delete)
+Contribucion → envíos ciudadanos (persona o imagen de listado), moderadoEn/Por
 ```
 
 ## Roadmap
 
-| Fase                                                                  | Estado |
-| --------------------------------------------------------------------- | ------ |
-| Seed, búsqueda, páginas individuales, API, contribuciones en cola     | ✅     |
-| Importación OCR desde Markdown (`seed:ocr`)                           | ✅     |
-| Moderación, OCR automático de imágenes, publicación de contribuciones | 🔜     |
+| Fase                                                              | Estado |
+| ----------------------------------------------------------------- | ------ |
+| Seed, búsqueda, páginas individuales, API, contribuciones en cola | ✅     |
+| Importación OCR desde Markdown (`seed:ocr`)                       | ✅     |
+| Panel de moderación, OCR de imágenes (OpenAI), CRUD y publicación | ✅     |
 
 ## Stack
 
