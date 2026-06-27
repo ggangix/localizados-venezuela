@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LugarLink } from "@/components/LugarLink";
 import { ShareButtons } from "@/components/ShareButtons";
+import { SubscribeToLocalizadoForm } from "@/components/SubscribeToLocalizadoForm";
 import { getLocalizadoBySlug } from "@/lib/queries";
 import { absoluteUrl, shareLocalizado } from "@/lib/share";
 
@@ -103,6 +104,11 @@ export default async function LocalizadoPage({ params }: Props) {
           </a>
         )}
       </section>
+
+      <SubscribeToLocalizadoForm
+        slug={localizado.slug}
+        nombre={localizado.nombreCompleto}
+      />
 
       <ShareButtons
         variant="sticky"

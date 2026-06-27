@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Localizados Venezuela">
+  <rect width="512" height="512" rx="96" fill="#0284c7" />
+  <path
+    d="M256 104c-70 0-126 55-126 123 0 90 113 179 119 183a11 11 0 0 0 14 0c6-4 119-93 119-183 0-68-56-123-126-123Z"
+    fill="#ffffff" />
+  <circle cx="256" cy="223" r="48" fill="#0284c7" />
+</svg>

@@ -141,6 +141,59 @@ docker compose build localizados-venezuela
 docker compose up -d localizados-venezuela
 ```
 
+## Notificaciones web push (PWA)
+
+Una persona que busca a un familiar puede **dejar guardada su búsqueda** y recibir un
+**aviso en su dispositivo** (móvil o escritorio) cuando se publique un `Localizado`
+verificado que podría coincidir — por **nombre** o **cédula**. También puede suscribirse
+a los cambios de un registro concreto desde su página.
+
+> **Atribución.** Esta funcionalidad está basada en el excelente trabajo de
+> **@cxbitz (Cristóbal Schlaubitz García)** en el
+> [PR #35 — _feat: agregar notificaciones de localizados_](https://github.com/ggangix/localizados-venezuela/pull/35),
+> que implementó las búsquedas guardadas con aviso por **correo**.
+>
+> Esta variante es un **fork de esa idea pero usando únicamente notificaciones web
+> push (PWA)**: el mismo flujo de suscripción y coincidencias, pero por un canal
+> **gratuito** que **no necesita un servicio de correo** (como Bird) ni proveedores
+> externos. El objetivo es reducir costos de operación para un proyecto humanitario.
+
+### Cómo funciona
+
+- **Mismo emparejamiento que el PR #35**: cédula normalizada exacta **o** nombre
+  completo normalizado exacto (sin fuzzy matching).
+- **Sin doble opt-in**: en webpush el permiso del navegador ya es el consentimiento,
+  así que la suscripción queda activa de inmediato (no hace falta confirmar por correo).
+- Las suscripciones expiradas (respuesta 404/410 del navegador en un envío real) se dan
+  de baja solas.
+
+### Configuración
+
+```bash
+# 1) Generar el par de claves VAPID
+npm run webpush:keys
+```
+
+Copia la salida a `.env.local`:
+
+```env
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...   # mismo valor que VAPID_PUBLIC_KEY
+VAPID_SUBJECT=mailto:soporte@localizadosvenezuela.com
+```
+
+Si hay claves VAPID, los avisos se envían de verdad; sin ellas (desarrollo) solo se
+registran en consola.
+
+> **iOS:** Safari solo permite push si la web se **agrega a la pantalla de inicio**
+> (Compartir → Agregar a inicio) y se abre como app. En Android/escritorio funciona
+> directo en el navegador. La interfaz detecta iOS y muestra la instrucción.
+
+Archivos clave: `public/sw.js` (service worker), `public/manifest.webmanifest`,
+`src/lib/webpush.ts` (envío), `src/lib/webpush-client.ts` (suscripción en cliente) y
+`src/lib/notifications.ts` (eventos, coincidencias y entregas).
+
 ## Datos de prueba (seed)
 
 El repo incluye **`seed/sample/`** para desarrollar sin archivos externos:

@@ -9,6 +9,7 @@ import path from "path";
 import mongoose from "mongoose";
 import { Lugar } from "../src/lib/models/Lugar";
 import { Localizado } from "../src/lib/models/Localizado";
+import { recordPublishedLocalizadoEvents } from "../src/lib/notifications";
 import type { SeedLocalizado, SeedLugar } from "./lib/excel-seed";
 
 const MONGODB_URI =
@@ -16,6 +17,7 @@ const MONGODB_URI =
 
 const FORCE_SAMPLE = process.argv.includes("--sample");
 const BATCH_SIZE = 500;
+const IMPORT_RUN_ID = `json-seed-${new Date().toISOString()}`;
 
 function log(msg: string) {
   console.log(`[seed] ${msg}`);
@@ -111,13 +113,23 @@ async function main() {
     inserted++;
 
     if (batch.length >= BATCH_SIZE) {
-      await Localizado.insertMany(batch, { ordered: false });
+      const docs = await Localizado.insertMany(batch, { ordered: false });
+      await recordPublishedLocalizadoEvents(docs, {
+        source: "json_seed",
+        importRunId: IMPORT_RUN_ID,
+        notifySavedSearches: false,
+      });
       batch = [];
     }
   }
 
   if (batch.length > 0) {
-    await Localizado.insertMany(batch, { ordered: false });
+    const docs = await Localizado.insertMany(batch, { ordered: false });
+    await recordPublishedLocalizadoEvents(docs, {
+      source: "json_seed",
+      importRunId: IMPORT_RUN_ID,
+      notifySavedSearches: false,
+    });
   }
 
   log(`Insertados: ${inserted} | Omitidos: ${skipped}`);
