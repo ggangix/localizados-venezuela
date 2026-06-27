@@ -237,8 +237,8 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 | `npm run lint:fix`   | ESLint con auto-fix                             |
 | `npm run format`     | Prettier                                        |
 | `npm run check`      | lint + format:check (lo que corre el CI)        |
-| `npm test`           | Vitest en modo watch (desarrollo)               |
-| `npm run test:run`   | Vitest una sola vez (CI)                        |
+| `npm test`           | Vitest (una sola ejecución, CI)                 |
+| `npm run test:watch` | Vitest en modo watch (desarrollo)               |
 
 ## Colaborar
 
@@ -256,7 +256,7 @@ GitHub Actions ejecuta en cada PR:
 
 - `npm run lint`
 - `npm run format:check`
-- `npm run test:run`
+- `npm test`
 - `npm run build`
 
 ### Ideas para contribuir

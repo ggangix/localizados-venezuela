@@ -24,7 +24,7 @@ jobs:
 
       - run: npm run format:check
 
-      - run: npm run test:run
+      - run: npm test
 
       - run: npm run build
         env:
