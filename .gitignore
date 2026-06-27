@@ -6,7 +6,7 @@ out
 .env
 .env.*
 !.env.example
-
+bun.lock
 public/uploads/*
 !public/uploads/.gitkeep
 

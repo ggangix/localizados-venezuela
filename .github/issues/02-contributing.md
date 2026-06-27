@@ -1,7 +1,9 @@
 ## Por qué
+
 Hay devs que quieren colaborar pero no saben por dónde empezar. Un `CONTRIBUTING.md` corto reduce fricción.
 
 ## Qué hacer
+
 Crear `CONTRIBUTING.md` en español con:
 
 1. **Requisitos:** Node 22+, MongoDB
@@ -14,6 +16,7 @@ Crear `CONTRIBUTING.md` en español con:
 Añadir en el README una línea que enlace a este archivo.
 
 ## Listo cuando
+
 - [ ] `CONTRIBUTING.md` existe y está en español
 - [ ] README enlaza al archivo
 - [ ] No repite todo el README (solo lo esencial para contribuir)

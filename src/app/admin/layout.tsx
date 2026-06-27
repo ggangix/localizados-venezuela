@@ -12,7 +12,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="border-b border-slate-200 bg-slate-900 px-4 py-3 text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-400">Localizados Venezuela</p>
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              Localizados Venezuela
+            </p>
             <h1 className="text-lg font-semibold">Panel de moderación</h1>
           </div>
           <Link href="/" className="text-sm text-slate-300 hover:text-white">

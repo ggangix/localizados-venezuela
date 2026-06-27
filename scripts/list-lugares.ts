@@ -89,7 +89,9 @@ async function main() {
 
   const dupExact = [...byKey.entries()].filter(([, list]) => list.length > 1);
   if (dupExact.length) {
-    console.log(`\n=== Duplicados por nombre normalizado (${dupExact.length} grupos) ===\n`);
+    console.log(
+      `\n=== Duplicados por nombre normalizado (${dupExact.length} grupos) ===\n`
+    );
     for (const [key, list] of dupExact) {
       console.log(`[${key}]`);
       for (const r of list) {

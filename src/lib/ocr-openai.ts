@@ -23,7 +23,11 @@ export async function extractRowsFromImage(imagenPath: string) {
   }
 
   const rel = imagenPath.startsWith("/") ? imagenPath.slice(1) : imagenPath;
-  const fullPath = path.join(process.cwd(), "public", rel.replace(/^uploads\//, "uploads/"));
+  const fullPath = path.join(
+    process.cwd(),
+    "public",
+    rel.replace(/^uploads\//, "uploads/")
+  );
   const buffer = await readFile(fullPath);
   const mime = mimeFromPath(fullPath);
   const base64 = buffer.toString("base64");

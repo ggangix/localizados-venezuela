@@ -1,5 +1,6 @@
-import { clearAdminCookieResponse } from "@/lib/admin-auth";
+import { withErrorHandler } from "@/lib/api-middleware";
+import { clearAdminSessionResponse } from "@/lib/admin-auth";
 
-export async function POST() {
-  return clearAdminCookieResponse();
-}
+export const POST = withErrorHandler(async () => {
+  return await clearAdminSessionResponse();
+});

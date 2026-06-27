@@ -1,67 +1,70 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
-  ADMIN_COOKIE,
   getAdminSecrets,
   isAdminConfigured,
   isValidAdminSecret,
 } from "@/lib/admin-auth-core";
+import {
+  createSession,
+  destroySession,
+  getSession,
+  SESSION_COOKIE,
+} from "@/lib/auth/session";
 
-export { ADMIN_COOKIE, getAdminSecrets, isAdminConfigured, isValidAdminSecret };
+export { getAdminSecrets, isAdminConfigured, isValidAdminSecret };
 
-export async function getAdminTokenFromCookies(): Promise<string | null> {
+export async function getAdminTokenFromSession(): Promise<string | null> {
   const jar = await cookies();
-  return jar.get(ADMIN_COOKIE)?.value ?? null;
+  return jar.get(SESSION_COOKIE)?.value ?? null;
 }
 
 export async function isAdminAuthenticated(): Promise<boolean> {
   if (!isAdminConfigured()) return false;
-  const token = await getAdminTokenFromCookies();
-  return token ? isValidAdminSecret(token) : false;
+  const token = await getAdminTokenFromSession();
+  if (!token) return false;
+  const session = await getSession(token);
+  return session !== null;
 }
 
-export function verifyAdminRequest(req: Request): boolean {
-  if (!isAdminConfigured()) return false;
-
-  const auth = req.headers.get("authorization");
-  if (auth?.startsWith("Bearer ")) {
-    return isValidAdminSecret(auth.slice(7).trim());
-  }
-
-  const header = req.headers.get("x-admin-secret");
-  if (header && isValidAdminSecret(header.trim())) return true;
-
-  return false;
-}
-
-export async function requireAdmin(req?: Request): Promise<NextResponse | null> {
+export async function requireAdmin(): Promise<NextResponse | null> {
   if (!isAdminConfigured()) {
-    return NextResponse.json({ error: "Panel de admin no configurado" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Panel de admin no configurado" },
+      { status: 503 }
+    );
   }
 
-  if (req && verifyAdminRequest(req)) return null;
   if (await isAdminAuthenticated()) return null;
 
   return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 }
 
-export function setAdminCookieResponse(
-  secret: string,
-  body: unknown = { ok: true }
-): NextResponse {
-  const res = NextResponse.json(body);
-  res.cookies.set(ADMIN_COOKIE, secret, {
+export async function createAdminSessionResponse(): Promise<NextResponse> {
+  const { token, maxAge } = await createSession();
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    sameSite: "strict",
+    path: "/admin",
+    maxAge,
   });
   return res;
 }
 
-export function clearAdminCookieResponse(): NextResponse {
+export async function clearAdminSessionResponse(): Promise<NextResponse> {
+  const token = await getAdminTokenFromSession();
+  if (token) {
+    await destroySession(token);
+  }
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(ADMIN_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  res.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/admin",
+    maxAge: 0,
+  });
   return res;
 }

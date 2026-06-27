@@ -1,10 +1,13 @@
 import { jsonResponse } from "@/lib/api";
+import { withErrorHandler } from "@/lib/api-middleware";
 import { requireAdmin } from "@/lib/admin-auth";
 import { connectDB } from "@/lib/db";
 import { inferLugarTipo } from "@/lib/lugar-utils";
 import { Localizado } from "@/lib/models/Localizado";
 import { Lugar } from "@/lib/models/Lugar";
 import { makeSlug } from "@/lib/slug";
+import { safeJsonParseBody } from "@/lib/safe-json";
+import { ValidationError } from "@/lib/errors";
 import type { LugarTipo } from "@/lib/types";
 
 const PUBLISHED = {
@@ -12,8 +15,8 @@ const PUBLISHED = {
   $or: [{ deletedAt: { $exists: false } }, { deletedAt: null }],
 };
 
-export async function GET(req: Request) {
-  const denied = await requireAdmin(req);
+export const GET = withErrorHandler(async () => {
+  const denied = await requireAdmin();
   if (denied) return denied;
 
   await connectDB();
@@ -33,18 +36,27 @@ export async function GET(req: Request) {
       totalPublicados: countMap.get(String(l._id)) ?? 0,
     })),
   });
-}
+});
 
-export async function POST(req: Request) {
-  const denied = await requireAdmin(req);
+export const POST = withErrorHandler(async (req: Request) => {
+  const denied = await requireAdmin();
   if (denied) return denied;
 
-  const body = (await req.json()) as { nombre?: string; tipo?: LugarTipo };
-  const nombre = body.nombre?.trim();
-  if (!nombre) return jsonResponse({ error: "nombre requerido" }, { status: 400 });
+  const bodyText = await req.text();
+  const parsed = safeJsonParseBody<{ nombre?: string; tipo?: LugarTipo }>(bodyText);
+  if (!parsed.ok) {
+    return jsonResponse({ error: "JSON inválido" }, { status: 400 });
+  }
+
+  const nombre = String(parsed.data.nombre ?? "").trim();
+  if (!nombre) throw new ValidationError("nombre requerido");
 
   await connectDB();
-  const existing = await Lugar.findOne({ nombre });
+  const existing = await Lugar.findOne({
+    nombre: {
+      $regex: new RegExp(`^${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+    },
+  });
   if (existing) {
     return jsonResponse({
       ok: true,
@@ -58,7 +70,7 @@ export async function POST(req: Request) {
   const doc = await Lugar.create({
     slug: makeSlug(nombre),
     nombre,
-    tipo: body.tipo ?? inferLugarTipo(nombre),
+    tipo: parsed.data.tipo ?? inferLugarTipo(nombre),
   });
 
   return jsonResponse({
@@ -68,4 +80,4 @@ export async function POST(req: Request) {
     nombre: doc.nombre,
     existed: false,
   });
-}
+});

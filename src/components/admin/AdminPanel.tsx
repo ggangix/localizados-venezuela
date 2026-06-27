@@ -1,6 +1,8 @@
 "use client";
 
+import { fetchApi } from "@/lib/fetch-api";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 
 type Lugar = { id: string; nombre: string; slug: string; totalPublicados: number };
 type Contrib = {
@@ -38,15 +40,7 @@ type OcrRow = {
   condicion?: string;
 };
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
-  return data as T;
-}
-
-const inputCls =
-  "mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm";
+const inputCls = "mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm";
 const btnPrimary =
   "rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50";
 const btnSecondary =
@@ -70,7 +64,11 @@ function LugarPicker({
 
   return (
     <div className="space-y-2">
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputCls}
+      >
         <option value="">— Seleccionar hospital —</option>
         {lugares.map((l) => (
           <option key={l.id} value={l.id}>
@@ -118,7 +116,8 @@ export function AdminPanel() {
 
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroLugar, setFiltroLugar] = useState("");
-  const [filtroQ, setFiltroQ] = useState("");
+  const [filtroQInput, setFiltroQInput] = useState("");
+  const filtroQ = useDebounce(filtroQInput, 300);
   const [verBorrados, setVerBorrados] = useState(false);
 
   const [editPersona, setEditPersona] = useState<Persona | null>(null);
@@ -127,13 +126,23 @@ export function AdminPanel() {
   const [ocrLugarId, setOcrLugarId] = useState("");
 
   const loadLugares = useCallback(async () => {
-    const data = await api<{ data: Lugar[] }>("/api/admin/lugares");
-    setLugares(data.data);
+    const result = await fetchApi<{ data: Lugar[] }>("/api/admin/lugares");
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
+    setLugares(result.data.data);
   }, []);
 
   const loadContrib = useCallback(async () => {
-    const data = await api<{ data: Contrib[] }>("/api/admin/contribuciones?estado=pending");
-    setContribuciones(data.data);
+    const result = await fetchApi<{ data: Contrib[] }>(
+      "/api/admin/contribuciones?estado=pending"
+    );
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
+    setContribuciones(result.data.data);
   }, []);
 
   const loadPersonas = useCallback(async () => {
@@ -142,17 +151,23 @@ export function AdminPanel() {
     if (filtroLugar) params.set("lugarId", filtroLugar);
     if (filtroQ) params.set("q", filtroQ);
     if (verBorrados) params.set("deleted", "1");
-    const data = await api<{ data: Persona[] }>(`/api/admin/localizados?${params}`);
-    setPersonas(data.data);
+    const result = await fetchApi<{ data: Persona[] }>(
+      `/api/admin/localizados?${params}`
+    );
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
+    setPersonas(result.data.data);
   }, [filtroEstado, filtroLugar, filtroQ, verBorrados]);
 
   useEffect(() => {
-    void loadLugares().catch((e) => setErr(String(e)));
+    void loadLugares();
   }, [loadLugares]);
 
   useEffect(() => {
-    if (tab === "contrib") void loadContrib().catch((e) => setErr(String(e)));
-    else void loadPersonas().catch((e) => setErr(String(e)));
+    if (tab === "contrib") void loadContrib();
+    else void loadPersonas();
   }, [tab, loadContrib, loadPersonas]);
 
   const allSelected = useMemo(
@@ -161,13 +176,16 @@ export function AdminPanel() {
   );
 
   async function createLugar(nombre: string) {
-    const res = await api<{ id: string }>("/api/admin/lugares", {
+    const result = await fetchApi<{ id: string }>("/api/admin/lugares", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nombre }),
     });
+    if (!result.ok) {
+      setErr(result.error.error);
+      return;
+    }
     await loadLugares();
-    setOcrLugarId(res.id);
+    setOcrLugarId(result.data.id);
     setMsg(`Lugar «${nombre}» listo`);
   }
 
@@ -177,23 +195,33 @@ export function AdminPanel() {
     setLoading(true);
     setErr("");
     try {
-      const res = await api<{ affected: number }>("/api/admin/localizados/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, action, lugarId }),
-      });
-      setMsg(`${action}: ${res.affected} registro(s)`);
+      const result = await fetchApi<{ affected: number; total?: number }>(
+        "/api/admin/localizados/bulk",
+        {
+          method: "POST",
+          body: JSON.stringify({ ids, action, lugarId }),
+        }
+      );
+      if (!result.ok) {
+        setErr(result.error.error);
+        return;
+      }
+      const { affected, total = affected } = result.data;
+      const failed = total - affected;
+      setMsg(
+        failed > 0
+          ? `${action}: ${affected}/${total} (${failed} fallaron)`
+          : `${action}: ${affected} registro(s)`
+      );
       setSelected(new Set());
       await loadPersonas();
-    } catch (e) {
-      setErr(String(e));
     } finally {
       setLoading(false);
     }
   }
 
   async function logout() {
-    await fetch("/api/admin/auth/logout", { method: "POST" });
+    await fetchApi("/api/admin/auth/logout", { method: "POST", timeoutMs: 3000 });
     window.location.href = "/admin/login";
   }
 
@@ -266,7 +294,7 @@ export function AdminPanel() {
           editPersona={editPersona}
           onFiltroEstado={setFiltroEstado}
           onFiltroLugar={setFiltroLugar}
-          onFiltroQ={setFiltroQ}
+          onFiltroQ={setFiltroQInput}
           onVerBorrados={setVerBorrados}
           onReload={() => void loadPersonas()}
           onSelectAll={(on) =>
@@ -338,9 +366,8 @@ function ContribCard({
   async function act(action: "approve" | "reject") {
     setBusy(true);
     try {
-      await api(`/api/admin/contribuciones/${contrib.id}`, {
+      const result = await fetchApi(`/api/admin/contribuciones/${contrib.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           notasModeracion: notas || undefined,
@@ -348,9 +375,11 @@ function ContribCard({
           persona: contrib.tipo === "persona" ? persona : undefined,
         }),
       });
+      if (!result.ok) {
+        onError(result.error.error);
+        return;
+      }
       await onDone();
-    } catch (e) {
-      onError(String(e));
     } finally {
       setBusy(false);
     }
@@ -359,14 +388,19 @@ function ContribCard({
   async function runOcr() {
     setBusy(true);
     try {
-      const res = await api<{ rows: OcrRow[] }>(`/api/admin/contribuciones/${contrib.id}/ocr`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "extract" }),
-      });
-      onOcr(contrib.id, res.rows ?? []);
-    } catch (e) {
-      onError(String(e));
+      const result = await fetchApi<{ rows: OcrRow[] }>(
+        `/api/admin/contribuciones/${contrib.id}/ocr`,
+        {
+          method: "POST",
+          body: JSON.stringify({ action: "extract" }),
+          timeoutMs: 60_000,
+        }
+      );
+      if (!result.ok) {
+        onError(result.error.error);
+        return;
+      }
+      onOcr(contrib.id, result.data.rows ?? []);
     } finally {
       setBusy(false);
     }
@@ -387,7 +421,12 @@ function ContribCard({
 
       {contrib.imagenPath ? (
         <div className="mt-3">
-          <a href={contrib.imagenPath} target="_blank" rel="noreferrer" className="text-sm text-brand-600">
+          <a
+            href={contrib.imagenPath}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-brand-600"
+          >
             Ver imagen: {contrib.imagenNombreOriginal}
           </a>
           {/* eslint-disable-next-line @next/next/no-img-element -- uploads dinámicos en moderación */}
@@ -396,7 +435,12 @@ function ContribCard({
             alt=""
             className="mt-2 max-h-48 rounded-lg border object-contain"
           />
-          <button type="button" className={`${btnSecondary} mt-2`} disabled={busy} onClick={() => void runOcr()}>
+          <button
+            type="button"
+            className={`${btnSecondary} mt-2`}
+            disabled={busy}
+            onClick={() => void runOcr()}
+          >
             Extraer tabla con OpenAI OCR
           </button>
         </div>
@@ -404,36 +448,63 @@ function ContribCard({
 
       {contrib.tipo === "persona" ? (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {(["nombreCompleto", "edad", "cedula", "telefono", "direccion", "observaciones", "lugarNombre"] as const).map(
-            (field) => (
-              <label key={field} className="text-xs font-medium text-slate-600">
-                {field}
-                <input
-                  className={inputCls}
-                  value={persona[field] ?? ""}
-                  onChange={(e) => setPersona({ ...persona, [field]: e.target.value })}
-                />
-              </label>
-            )
-          )}
+          {(
+            [
+              "nombreCompleto",
+              "edad",
+              "cedula",
+              "telefono",
+              "direccion",
+              "observaciones",
+              "lugarNombre",
+            ] as const
+          ).map((field) => (
+            <label key={field} className="text-xs font-medium text-slate-600">
+              {field}
+              <input
+                className={inputCls}
+                value={persona[field] ?? ""}
+                onChange={(e) => setPersona({ ...persona, [field]: e.target.value })}
+              />
+            </label>
+          ))}
         </div>
       ) : null}
 
       <div className="mt-3">
         <p className="text-xs font-medium text-slate-600">Hospital / lugar</p>
-        <LugarPicker lugares={lugares} value={lugarId} onChange={setLugarId} onCreate={onCreateLugar} />
+        <LugarPicker
+          lugares={lugares}
+          value={lugarId}
+          onChange={setLugarId}
+          onCreate={onCreateLugar}
+        />
       </div>
 
       <label className="mt-2 block text-xs font-medium text-slate-600">
         Notas moderación
-        <input className={inputCls} value={notas} onChange={(e) => setNotas(e.target.value)} />
+        <input
+          className={inputCls}
+          value={notas}
+          onChange={(e) => setNotas(e.target.value)}
+        />
       </label>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" className={btnPrimary} disabled={busy} onClick={() => void act("approve")}>
+        <button
+          type="button"
+          className={btnPrimary}
+          disabled={busy}
+          onClick={() => void act("approve")}
+        >
           Aprobar / publicar
         </button>
-        <button type="button" className={btnDanger} disabled={busy} onClick={() => void act("reject")}>
+        <button
+          type="button"
+          className={btnDanger}
+          disabled={busy}
+          onClick={() => void act("reject")}
+        >
           Rechazar
         </button>
       </div>
@@ -472,14 +543,15 @@ function OcrImportModal({
     }
     setBusy(true);
     try {
-      await api(`/api/admin/contribuciones/${contribId}/ocr`, {
+      const result = await fetchApi(`/api/admin/contribuciones/${contribId}/ocr`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "import", rows, lugarId, estado }),
       });
+      if (!result.ok) {
+        onError(result.error.error);
+        return;
+      }
       await onImported();
-    } catch (e) {
-      onError(String(e));
     } finally {
       setBusy(false);
     }
@@ -490,7 +562,12 @@ function OcrImportModal({
       <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-xl">
         <h3 className="text-lg font-semibold">Importar {rows.length} filas OCR</h3>
         <div className="mt-3">
-          <LugarPicker lugares={lugares} value={lugarId} onChange={onLugarId} onCreate={onCreateLugar} />
+          <LugarPicker
+            lugares={lugares}
+            value={lugarId}
+            onChange={onLugarId}
+            onCreate={onCreateLugar}
+          />
         </div>
         <label className="mt-2 block text-sm">
           Estado al crear
@@ -522,10 +599,17 @@ function OcrImportModal({
               ))}
             </tbody>
           </table>
-          {rows.length > 30 ? <p className="p-2 text-slate-500">…y {rows.length - 30} más</p> : null}
+          {rows.length > 30 ? (
+            <p className="p-2 text-slate-500">…y {rows.length - 30} más</p>
+          ) : null}
         </div>
         <div className="mt-4 flex gap-2">
-          <button type="button" className={btnPrimary} disabled={busy} onClick={() => void importRows()}>
+          <button
+            type="button"
+            className={btnPrimary}
+            disabled={busy}
+            onClick={() => void importRows()}
+          >
             Crear personas
           </button>
           <button type="button" className={btnSecondary} onClick={onClose}>
@@ -616,7 +700,11 @@ function PersonasTab({
           ))}
         </select>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={verBorrados} onChange={(e) => onVerBorrados(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={verBorrados}
+            onChange={(e) => onVerBorrados(e.target.checked)}
+          />
           Solo borrados
         </label>
         <button type="button" className={btnSecondary} onClick={onReload}>
@@ -626,7 +714,11 @@ function PersonasTab({
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={allSelected} onChange={(e) => onSelectAll(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={(e) => onSelectAll(e.target.checked)}
+          />
           Seleccionar todo ({selected.size})
         </label>
         <button
@@ -689,9 +781,16 @@ function PersonasTab({
           </thead>
           <tbody>
             {personas.map((p) => (
-              <tr key={p.id} className={`border-t ${p.deletedAt ? "bg-red-50/50" : ""}`}>
+              <tr
+                key={p.id}
+                className={`border-t ${p.deletedAt ? "bg-red-50/50" : ""}`}
+              >
                 <td className="p-2">
-                  <input type="checkbox" checked={selected.has(p.id)} onChange={() => onToggle(p.id)} />
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => onToggle(p.id)}
+                  />
                 </td>
                 <td className="p-2 font-medium">{p.nombreCompleto}</td>
                 <td className="p-2">{p.cedula}</td>
@@ -701,7 +800,11 @@ function PersonasTab({
                   {p.deletedAt ? " · borrado" : ""}
                 </td>
                 <td className="p-2">
-                  <button type="button" className="text-brand-600 hover:underline" onClick={() => onEdit(p)}>
+                  <button
+                    type="button"
+                    className="text-brand-600 hover:underline"
+                    onClick={() => onEdit(p)}
+                  >
                     Editar
                   </button>
                 </td>
@@ -746,9 +849,8 @@ function EditPersonaModal({
     setBusy(true);
     setError("");
     try {
-      await api(`/api/admin/localizados/${persona.id}`, {
+      const result = await fetchApi(`/api/admin/localizados/${persona.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nombreCompleto: form.nombreCompleto,
           edad: form.edad,
@@ -762,9 +864,11 @@ function EditPersonaModal({
           restore: Boolean(persona.deletedAt),
         }),
       });
+      if (!result.ok) {
+        setError(result.error.error);
+        return;
+      }
       await onSaved();
-    } catch (e) {
-      setError(String(e));
     } finally {
       setBusy(false);
     }
@@ -821,11 +925,21 @@ function EditPersonaModal({
         </div>
         <div className="mt-3">
           <p className="text-xs font-medium text-slate-600">Hospital</p>
-          <LugarPicker lugares={lugares} value={lugarId} onChange={setLugarId} onCreate={onCreateLugar} />
+          <LugarPicker
+            lugares={lugares}
+            value={lugarId}
+            onChange={setLugarId}
+            onCreate={onCreateLugar}
+          />
         </div>
         {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         <div className="mt-4 flex gap-2">
-          <button type="button" className={btnPrimary} disabled={busy} onClick={() => void save()}>
+          <button
+            type="button"
+            className={btnPrimary}
+            disabled={busy}
+            onClick={() => void save()}
+          >
             Guardar
           </button>
           <button type="button" className={btnSecondary} onClick={onClose}>

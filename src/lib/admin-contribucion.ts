@@ -16,7 +16,8 @@ export async function approveContribucion(
   await connectDB();
   const contrib = await Contribucion.findById(id);
   if (!contrib) throw new Error("Contribución no encontrada");
-  if (contrib.estado !== "pending") throw new Error("Solo se aprueban contribuciones pending");
+  if (contrib.estado !== "pending")
+    throw new Error("Solo se aprueban contribuciones pending");
 
   const now = new Date();
   const meta = {
@@ -91,7 +92,8 @@ export async function rejectContribucion(
   await connectDB();
   const contrib = await Contribucion.findById(id);
   if (!contrib) throw new Error("Contribución no encontrada");
-  if (contrib.estado !== "pending") throw new Error("Solo se rechazan contribuciones pending");
+  if (contrib.estado !== "pending")
+    throw new Error("Solo se rechazan contribuciones pending");
 
   contrib.estado = "rejected";
   contrib.moderadoEn = new Date();

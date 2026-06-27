@@ -1,71 +1,61 @@
 import { jsonResponse } from "@/lib/api";
+import { withErrorHandler } from "@/lib/api-middleware";
 import { requireAdmin } from "@/lib/admin-auth";
 import {
   moveLocalizados,
   restoreLocalizados,
+  setEstadoLocalizados,
   softDeleteLocalizados,
-  updateLocalizado,
 } from "@/lib/admin-localizado";
+import { safeJsonParseBody } from "@/lib/safe-json";
+import { ValidationError } from "@/lib/errors";
 
-export async function POST(req: Request) {
-  const denied = await requireAdmin(req);
+export const POST = withErrorHandler(async (req: Request) => {
+  const denied = await requireAdmin();
   if (denied) return denied;
 
-  const body = (await req.json()) as {
+  const bodyText = await req.text();
+  const parsed = safeJsonParseBody<{
     ids?: string[];
-    action?: "delete" | "restore" | "move" | "publish" | "reject";
+    action?: string;
     lugarId?: string;
-  };
-
-  const ids = body.ids?.filter(Boolean) ?? [];
-  if (!ids.length) return jsonResponse({ error: "ids requerido" }, { status: 400 });
-
-  try {
-    switch (body.action) {
-      case "delete": {
-        const n = await softDeleteLocalizados(ids);
-        return jsonResponse({ ok: true, affected: n });
-      }
-      case "restore": {
-        const n = await restoreLocalizados(ids);
-        return jsonResponse({ ok: true, affected: n });
-      }
-      case "move": {
-        if (!body.lugarId) {
-          return jsonResponse({ error: "lugarId requerido" }, { status: 400 });
-        }
-        const n = await moveLocalizados(ids, body.lugarId);
-        return jsonResponse({ ok: true, affected: n });
-      }
-      case "publish": {
-        let n = 0;
-        for (const id of ids) {
-          try {
-            await updateLocalizado(id, { estado: "published" });
-            n++;
-          } catch {
-            // skip dupes
-          }
-        }
-        return jsonResponse({ ok: true, affected: n });
-      }
-      case "reject": {
-        let n = 0;
-        for (const id of ids) {
-          try {
-            await updateLocalizado(id, { estado: "rejected" });
-            n++;
-          } catch {
-            // skip
-          }
-        }
-        return jsonResponse({ ok: true, affected: n });
-      }
-      default:
-        return jsonResponse({ error: "action inválida" }, { status: 400 });
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Error";
-    return jsonResponse({ error: msg }, { status: 400 });
+  }>(bodyText);
+  if (!parsed.ok) {
+    return jsonResponse({ error: "JSON inválido" }, { status: 400 });
   }
-}
+
+  const ids = parsed.data.ids?.filter(Boolean) as string[] | undefined;
+  if (!ids?.length) {
+    return jsonResponse({ error: "ids requerido" }, { status: 400 });
+  }
+
+  const body = parsed.data;
+
+  switch (body.action) {
+    case "delete": {
+      const n = await softDeleteLocalizados(ids);
+      return jsonResponse({ ok: true, affected: n });
+    }
+    case "restore": {
+      const n = await restoreLocalizados(ids);
+      return jsonResponse({ ok: true, affected: n });
+    }
+    case "move": {
+      if (!body.lugarId) {
+        return jsonResponse({ error: "lugarId requerido" }, { status: 400 });
+      }
+      const n = await moveLocalizados(ids, body.lugarId);
+      return jsonResponse({ ok: true, affected: n });
+    }
+    case "publish": {
+      const r = await setEstadoLocalizados(ids, "published");
+      return jsonResponse({ ok: r.affected === r.total, ...r });
+    }
+    case "reject": {
+      const r = await setEstadoLocalizados(ids, "rejected");
+      return jsonResponse({ ok: r.affected === r.total, ...r });
+    }
+    default:
+      throw new ValidationError("action inválida");
+  }
+});

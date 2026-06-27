@@ -1,26 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { ADMIN_COOKIE, getAdminSecrets, isValidAdminSecret } from "@/lib/admin-auth-core";
+import { getAdminSecrets, isAdminConfigured } from "@/lib/admin-auth-core";
+import { getSession, SESSION_COOKIE } from "@/lib/auth/session";
 
-function isAuthed(req: NextRequest): boolean {
-  const secrets = getAdminSecrets();
-  if (!secrets.length) return false;
+async function isAuthed(req: NextRequest): Promise<boolean> {
+  if (!isAdminConfigured()) return false;
 
-  const token = req.cookies.get(ADMIN_COOKIE)?.value;
-  if (token && isValidAdminSecret(token)) return true;
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) return false;
 
-  const auth = req.headers.get("authorization");
-  if (auth?.startsWith("Bearer ") && isValidAdminSecret(auth.slice(7).trim())) {
-    return true;
-  }
-
-  const header = req.headers.get("x-admin-secret");
-  if (header && isValidAdminSecret(header.trim())) return true;
-
-  return false;
+  const session = await getSession(token);
+  return session !== null;
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname === "/admin/login" || pathname === "/api/admin/auth/login") {
@@ -34,7 +27,8 @@ export function middleware(req: NextRequest) {
       }
       return NextResponse.redirect(new URL("/", req.url));
     }
-    if (!isAuthed(req)) {
+    const authed = await isAuthed(req);
+    if (!authed) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 });
       }
