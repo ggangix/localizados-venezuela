@@ -4,8 +4,8 @@ import { requireAdmin } from "@/lib/admin-auth";
 import {
   moveLocalizados,
   restoreLocalizados,
+  setEstadoLocalizados,
   softDeleteLocalizados,
-  updateLocalizado,
 } from "@/lib/admin-localizado";
 import { safeJsonParseBody } from "@/lib/safe-json";
 import { ValidationError } from "@/lib/errors";
@@ -48,48 +48,12 @@ export const POST = withErrorHandler(async (req: Request) => {
       return jsonResponse({ ok: true, affected: n });
     }
     case "publish": {
-      const results: { id: string; ok: boolean; error?: string }[] = [];
-      for (const id of ids) {
-        try {
-          await updateLocalizado(id, { estado: "published" });
-          results.push({ id, ok: true });
-        } catch (err) {
-          results.push({
-            id,
-            ok: false,
-            error: err instanceof Error ? err.message : "Error",
-          });
-        }
-      }
-      const okCount = results.filter((r) => r.ok).length;
-      return jsonResponse({
-        ok: true,
-        affected: okCount,
-        total: ids.length,
-        results,
-      });
+      const r = await setEstadoLocalizados(ids, "published");
+      return jsonResponse({ ok: r.affected === r.total, ...r });
     }
     case "reject": {
-      const results: { id: string; ok: boolean; error?: string }[] = [];
-      for (const id of ids) {
-        try {
-          await updateLocalizado(id, { estado: "rejected" });
-          results.push({ id, ok: true });
-        } catch (err) {
-          results.push({
-            id,
-            ok: false,
-            error: err instanceof Error ? err.message : "Error",
-          });
-        }
-      }
-      const okCount = results.filter((r) => r.ok).length;
-      return jsonResponse({
-        ok: true,
-        affected: okCount,
-        total: ids.length,
-        results,
-      });
+      const r = await setEstadoLocalizados(ids, "rejected");
+      return jsonResponse({ ok: r.affected === r.total, ...r });
     }
     default:
       throw new ValidationError("action inválida");

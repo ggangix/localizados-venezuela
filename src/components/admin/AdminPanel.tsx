@@ -183,7 +183,7 @@ export function AdminPanel() {
     setLoading(true);
     setErr("");
     try {
-      const result = await fetchApi<{ affected: number }>(
+      const result = await fetchApi<{ affected: number; total?: number }>(
         "/api/admin/localizados/bulk",
         {
           method: "POST",
@@ -194,7 +194,13 @@ export function AdminPanel() {
         setErr(result.error.error);
         return;
       }
-      setMsg(`${action}: ${result.data.affected} registro(s)`);
+      const { affected, total = affected } = result.data;
+      const failed = total - affected;
+      setMsg(
+        failed > 0
+          ? `${action}: ${affected}/${total} (${failed} fallaron)`
+          : `${action}: ${affected} registro(s)`
+      );
       setSelected(new Set());
       await loadPersonas();
     } catch (e) {
