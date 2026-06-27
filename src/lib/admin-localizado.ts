@@ -6,7 +6,7 @@ import { Lugar } from "@/lib/models/Lugar";
 import type { OcrRow } from "@/lib/ocr-parser";
 import { makeSlug, makeUniqueSlug } from "@/lib/slug";
 import type { CondicionPersona, EstadoPublicacion, FuenteInfo } from "@/lib/types";
-import { dispatchLocalizadoPublished } from "@/lib/partner-webhook";
+import { dispatchLocalizadoPublished } from "@/lib/webhooks";
 
 export type PersonaInput = {
   nombreCompleto: string;

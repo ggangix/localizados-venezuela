@@ -110,7 +110,7 @@ function LugarPicker({
 }
 
 export function AdminPanel() {
-  const [tab, setTab] = useState<"contrib" | "personas">("contrib");
+  const [tab, setTab] = useState<"contrib" | "personas" | "webhooks">("contrib");
   const [lugares, setLugares] = useState<Lugar[]>([]);
   const [contribuciones, setContribuciones] = useState<Contrib[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -220,6 +220,13 @@ export function AdminPanel() {
           >
             Personas
           </button>
+          <button
+            type="button"
+            className={tab === "webhooks" ? btnPrimary : btnSecondary}
+            onClick={() => setTab("webhooks")}
+          >
+            Webhooks
+          </button>
         </div>
         <button type="button" className={btnSecondary} onClick={() => void logout()}>
           Salir
@@ -257,7 +264,7 @@ export function AdminPanel() {
             />
           ))}
         </div>
-      ) : (
+      ) : tab === "personas" ? (
         <PersonasTab
           personas={personas}
           lugares={lugares}
@@ -292,6 +299,8 @@ export function AdminPanel() {
             await loadPersonas();
           }}
         />
+      ) : (
+        <WebhooksTab />
       )}
 
       {ocrContribId && ocrRows.length > 0 ? (
@@ -905,6 +914,511 @@ function EditPersonaModal({
           />
         </div>
         {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            className={btnPrimary}
+            disabled={busy}
+            onClick={() => void save()}
+          >
+            Guardar
+          </button>
+          <button type="button" className={btnSecondary} onClick={onClose}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type WebhookItem = {
+  id: string;
+  nombre: string;
+  url: string;
+  hasSecret: boolean;
+  events: string[];
+  active: boolean;
+  lastStatus: string | null;
+  lastError: string | null;
+  lastDeliveryAt: string | null;
+};
+
+type DeliveryItem = {
+  id: string;
+  targetLabel: string;
+  event: string;
+  url: string;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  responseStatus: number | null;
+  error: string | null;
+  nextRetryAt: string | null;
+  sentAt: string | null;
+};
+
+function statusBadge(status: string | null) {
+  const map: Record<string, string> = {
+    sent: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-700",
+    pending: "bg-amber-100 text-amber-800",
+  };
+  const cls = (status && map[status]) || "bg-slate-100 text-slate-600";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+      {status ?? "—"}
+    </span>
+  );
+}
+
+function WebhooksTab() {
+  const [hooks, setHooks] = useState<WebhookItem[]>([]);
+  const [availableEvents, setAvailableEvents] = useState<string[]>([
+    "localizado.published",
+  ]);
+  const [deliveries, setDeliveries] = useState<DeliveryItem[]>([]);
+  const [deliveriesFor, setDeliveriesFor] = useState<string | "all" | null>(null);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<WebhookItem | null>(null);
+
+  const load = useCallback(async () => {
+    const data = await api<{ data: WebhookItem[]; events: string[] }>(
+      "/api/admin/webhooks"
+    );
+    setHooks(data.data);
+    if (data.events?.length) setAvailableEvents(data.events);
+  }, []);
+
+  const loadDeliveries = useCallback(async (webhookId?: string) => {
+    const qs = webhookId ? `?webhookId=${webhookId}` : "";
+    const data = await api<{ data: DeliveryItem[] }>(
+      `/api/admin/webhook-deliveries${qs}`
+    );
+    setDeliveries(data.data);
+  }, []);
+
+  useEffect(() => {
+    void load().catch((e) => setErr(String(e)));
+  }, [load]);
+
+  useEffect(() => {
+    if (deliveriesFor) {
+      void loadDeliveries(deliveriesFor === "all" ? undefined : deliveriesFor).catch(
+        (e) => setErr(String(e))
+      );
+    }
+  }, [deliveriesFor, loadDeliveries]);
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setErr("");
+    try {
+      await action();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const refreshDeliveries = () =>
+    deliveriesFor
+      ? loadDeliveries(deliveriesFor === "all" ? undefined : deliveriesFor)
+      : Promise.resolve();
+
+  return (
+    <div className="space-y-4">
+      {msg ? (
+        <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{msg}</p>
+      ) : null}
+      {err ? (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">Webhooks salientes</h2>
+          <p className="text-sm text-slate-600">
+            Avisan a un sitio socio (p. ej. desaparecidos) cuando se publica un
+            Localizado.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={btnPrimary}
+          onClick={() => {
+            setEditing(null);
+            setFormOpen(true);
+          }}
+        >
+          Nuevo webhook
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr>
+              <th className="p-2">Nombre</th>
+              <th className="p-2">URL</th>
+              <th className="p-2">Activo</th>
+              <th className="p-2">Último</th>
+              <th className="p-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {hooks.length === 0 ? (
+              <tr>
+                <td className="p-3 text-slate-500" colSpan={5}>
+                  No hay webhooks. Crea uno, o usa la variable de entorno
+                  DESAPARECIDOS_WEBHOOK_URL.
+                </td>
+              </tr>
+            ) : null}
+            {hooks.map((h) => (
+              <tr key={h.id} className="border-t align-top">
+                <td className="p-2 font-medium">
+                  {h.nombre}
+                  {h.hasSecret ? (
+                    <span
+                      className="ml-1 text-xs text-slate-400"
+                      title="Firmado (HMAC)"
+                    >
+                      🔒
+                    </span>
+                  ) : null}
+                </td>
+                <td className="max-w-[16rem] truncate p-2 text-slate-600">{h.url}</td>
+                <td className="p-2">
+                  <button
+                    type="button"
+                    className="text-brand-600 hover:underline"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        await api(`/api/admin/webhooks/${h.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ active: !h.active }),
+                        });
+                        await load();
+                      })
+                    }
+                  >
+                    {h.active ? "Sí" : "No"}
+                  </button>
+                </td>
+                <td className="p-2">{statusBadge(h.lastStatus)}</td>
+                <td className="p-2">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="text-brand-600 hover:underline"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          const r = await api<{
+                            ok: boolean;
+                            status: number | null;
+                            error: string | null;
+                          }>(`/api/admin/webhooks/${h.id}/test`, { method: "POST" });
+                          setMsg(
+                            r.ok
+                              ? `Prueba OK (HTTP ${r.status}) → ${h.nombre}`
+                              : `Prueba falló (${r.error ?? r.status}) → ${h.nombre}`
+                          );
+                          await load();
+                        })
+                      }
+                    >
+                      Probar
+                    </button>
+                    <button
+                      type="button"
+                      className="text-brand-600 hover:underline"
+                      onClick={() => {
+                        setEditing(h);
+                        setFormOpen(true);
+                      }}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="text-brand-600 hover:underline"
+                      onClick={() => setDeliveriesFor(h.id)}
+                    >
+                      Entregas
+                    </button>
+                    <button
+                      type="button"
+                      className="text-red-600 hover:underline"
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          if (!window.confirm(`¿Borrar webhook «${h.nombre}»?`)) return;
+                          await api(`/api/admin/webhooks/${h.id}`, {
+                            method: "DELETE",
+                          });
+                          setMsg("Webhook borrado");
+                          await load();
+                        })
+                      }
+                    >
+                      Borrar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={btnSecondary}
+          onClick={() => setDeliveriesFor("all")}
+        >
+          Ver entregas recientes
+        </button>
+        {deliveriesFor ? (
+          <>
+            <button
+              type="button"
+              className={btnSecondary}
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const r = await api<{ processed: number }>(
+                    "/api/admin/webhook-deliveries/process",
+                    { method: "POST" }
+                  );
+                  setMsg(`Procesadas ${r.processed} entrega(s) pendiente(s)`);
+                  await refreshDeliveries();
+                })
+              }
+            >
+              Procesar pendientes
+            </button>
+            <button
+              type="button"
+              className={btnSecondary}
+              onClick={() => setDeliveriesFor(null)}
+            >
+              Ocultar
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {deliveriesFor ? (
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-xs">
+            <thead className="bg-slate-50 text-left uppercase text-slate-500">
+              <tr>
+                <th className="p-2">Destino</th>
+                <th className="p-2">Estado</th>
+                <th className="p-2">Intentos</th>
+                <th className="p-2">Resp</th>
+                <th className="p-2">Error</th>
+                <th className="p-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {deliveries.length === 0 ? (
+                <tr>
+                  <td className="p-3 text-slate-500" colSpan={6}>
+                    Sin entregas todavía.
+                  </td>
+                </tr>
+              ) : null}
+              {deliveries.map((d) => (
+                <tr key={d.id} className="border-t">
+                  <td className="p-2">{d.targetLabel}</td>
+                  <td className="p-2">{statusBadge(d.status)}</td>
+                  <td className="p-2">
+                    {d.attempts}/{d.maxAttempts}
+                  </td>
+                  <td className="p-2">{d.responseStatus ?? "—"}</td>
+                  <td className="max-w-[14rem] truncate p-2 text-red-600">
+                    {d.error ?? ""}
+                  </td>
+                  <td className="p-2">
+                    {d.status !== "sent" ? (
+                      <button
+                        type="button"
+                        className="text-brand-600 hover:underline"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            await api(`/api/admin/webhook-deliveries/${d.id}/retry`, {
+                              method: "POST",
+                            });
+                            setMsg("Reintento ejecutado");
+                            await refreshDeliveries();
+                            await load();
+                          })
+                        }
+                      >
+                        Reintentar
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {formOpen ? (
+        <WebhookFormModal
+          webhook={editing}
+          availableEvents={availableEvents}
+          onClose={() => setFormOpen(false)}
+          onSaved={async () => {
+            setFormOpen(false);
+            setMsg("Guardado");
+            await load();
+          }}
+          onError={setErr}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function WebhookFormModal({
+  webhook,
+  availableEvents,
+  onClose,
+  onSaved,
+  onError,
+}: {
+  webhook: WebhookItem | null;
+  availableEvents: string[];
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+  onError: (s: string) => void;
+}) {
+  const [nombre, setNombre] = useState(webhook?.nombre ?? "");
+  const [url, setUrl] = useState(webhook?.url ?? "");
+  const [secret, setSecret] = useState("");
+  const [events, setEvents] = useState<string[]>(
+    webhook?.events ?? ["localizado.published"]
+  );
+  const [active, setActive] = useState(webhook?.active ?? true);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (!nombre.trim() || !url.trim()) {
+      onError("nombre y url requeridos");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (webhook) {
+        const body: Record<string, unknown> = { nombre, url, events, active };
+        if (secret.trim()) body.secret = secret.trim();
+        await api(`/api/admin/webhooks/${webhook.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } else {
+        await api("/api/admin/webhooks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre,
+            url,
+            secret: secret.trim() || undefined,
+            events,
+            active,
+          }),
+        });
+      }
+      await onSaved();
+    } catch (e) {
+      onError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+        <h3 className="text-lg font-semibold">
+          {webhook ? "Editar webhook" : "Nuevo webhook"}
+        </h3>
+        <div className="mt-3 space-y-2">
+          <label className="block text-xs font-medium text-slate-600">
+            Nombre
+            <input
+              className={inputCls}
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Desaparecidos Venezuela"
+            />
+          </label>
+          <label className="block text-xs font-medium text-slate-600">
+            URL (POST)
+            <input
+              className={inputCls}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://api-del-socio.example/webhooks/localizados"
+            />
+          </label>
+          <label className="block text-xs font-medium text-slate-600">
+            Secreto (HMAC, opcional)
+            {webhook?.hasSecret ? " — vacío conserva el actual" : ""}
+            <input
+              className={inputCls}
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              placeholder={
+                webhook?.hasSecret ? "•••••• (sin cambios)" : "secreto compartido"
+              }
+            />
+          </label>
+          <div className="text-xs font-medium text-slate-600">
+            Eventos
+            <div className="mt-1 space-y-1">
+              {availableEvents.map((ev) => (
+                <label key={ev} className="flex items-center gap-2 font-normal">
+                  <input
+                    type="checkbox"
+                    checked={events.includes(ev)}
+                    onChange={(e) =>
+                      setEvents(
+                        e.target.checked
+                          ? [...new Set([...events, ev])]
+                          : events.filter((x) => x !== ev)
+                      )
+                    }
+                  />
+                  {ev}
+                </label>
+              ))}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
+            />
+            Activo
+          </label>
+        </div>
         <div className="mt-4 flex gap-2">
           <button
             type="button"

@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db";
 import { createLocalizado, resolveLugarId } from "@/lib/admin-localizado";
 import { Contribucion } from "@/lib/models/Contribucion";
 import { Localizado, normalizeNombre } from "@/lib/models/Localizado";
-import { dispatchLocalizadoPublished } from "@/lib/partner-webhook";
+import { dispatchLocalizadoPublished } from "@/lib/webhooks";
 
 export async function approveContribucion(
   id: string,

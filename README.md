@@ -141,20 +141,33 @@ docker compose build localizados-venezuela
 docker compose up -d localizados-venezuela
 ```
 
-## Integración con desaparecidos (webhook saliente)
+## Integración con desaparecidos (webhooks salientes)
 
 Para **cerrar el ciclo** entre los dos registros hermanos, este proyecto puede avisar
 a [desaparecidosterremotovenezuela.com](https://desaparecidosterremotovenezuela.com/)
 (u otro socio) **cuando se publica un Localizado**, para que el otro sistema marque su
 reporte de desaparecido como encontrado.
 
-- **Saliente y opt-in**: si `DESAPARECIDOS_WEBHOOK_URL` no está configurada, es **no-op**.
 - **No hace scraping**: solo **enviamos** nuestros datos (que ya son públicos vía
   `/api/v1/localizados`). No leemos su API (está protegida con reCAPTCHA, por diseño).
   El intercambio de lectura debe coordinarse con su equipo (`developer@theempire.tech`).
 - **Best-effort y no bloqueante**: se dispara en segundo plano; un fallo no afecta al panel.
-- **Firmado**: si defines `DESAPARECIDOS_WEBHOOK_SECRET`, el cuerpo se firma con
-  HMAC-SHA256 en la cabecera `X-LV-Signature` para que el socio verifique autenticidad.
+- **Firmado**: si el webhook tiene secreto, el cuerpo se firma con HMAC-SHA256 en la
+  cabecera `X-LV-Signature` para que el socio verifique autenticidad e integridad.
+- **Reintentos**: cada envío se registra (`WebhookDelivery`) y se reintenta con backoff
+  (hasta 5 intentos). Tras un reinicio, `POST /api/admin/webhook-deliveries/process`
+  (ideal para un cron) reprocesa los pendientes vencidos.
+
+### Gestión desde el panel (`/admin` → pestaña **Webhooks**)
+
+Los moderadores pueden **crear, editar, activar/desactivar y borrar** endpoints sin
+redeploy, elegir el secreto y los eventos, **probar** la conexión con un ping y ver el
+**historial de entregas** (con reintento manual). Soporta **varios** destinos.
+
+### Fallback por variable de entorno (opcional)
+
+Además de los webhooks del panel, si defines estas variables se añade un destino fijo
+(útil para automatización/CI). Si no, no pasa nada:
 
 ```env
 DESAPARECIDOS_WEBHOOK_URL=https://api-del-socio.example/webhooks/localizados
@@ -186,7 +199,8 @@ Cada vez que un `Localizado` queda **publicado y visible**: al crearlo publicado
 }
 ```
 
-Archivo clave: `src/lib/partner-webhook.ts`.
+Archivos clave: `src/lib/webhooks.ts`, modelos `Webhook` / `WebhookDelivery`, y la
+pestaña **Webhooks** en `src/components/admin/AdminPanel.tsx`.
 
 ## Datos de prueba (seed)
 
