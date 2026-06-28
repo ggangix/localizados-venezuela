@@ -1,3 +1,7 @@
+export function parsePageParam(value: string | undefined): number {
+  return Math.max(1, Math.floor(Number(value ?? "1") || 1));
+}
+
 export function isSafeRedirect(url: string, allowedOrigin?: string): boolean {
   if (!url) return false;
 
