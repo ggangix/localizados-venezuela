@@ -1,3 +1,4 @@
+import { createLocalizado, createLugar } from "./factories";
 import {
   getLocalizadoBySlug,
   getLugarBySlug,
@@ -43,51 +44,6 @@ const mocks = vi.hoisted(() => {
 vi.mock("@/lib/db", () => ({ connectDB: mocks.connectDB }));
 vi.mock("@/lib/models/Localizado", () => ({ Localizado: mocks.Localizado }));
 vi.mock("@/lib/models/Lugar", () => ({ Lugar: mocks.Lugar }));
-
-function createLugar(
-  overrides: Partial<{
-    _id: mongoose.Types.ObjectId;
-    slug: string;
-    nombre: string;
-  }> = {}
-) {
-  return {
-    _id: new mongoose.Types.ObjectId(),
-    slug: "hospital-central",
-    nombre: "Hospital Central",
-    tipo: "hospital" as const,
-    direccion: "Av. Principal",
-    ciudad: "Caracas",
-    estado: "Distrito Capital",
-    ...overrides,
-  };
-}
-
-function createLocalizado(
-  overrides: Partial<{
-    _id: mongoose.Types.ObjectId;
-    slug: string;
-    nombreCompleto: string;
-    cedula: string;
-    lugarId: mongoose.Types.ObjectId;
-  }> = {}
-) {
-  return {
-    _id: new mongoose.Types.ObjectId(),
-    slug: "juan-perez",
-    nombreCompleto: "Juan Perez",
-    edad: "30",
-    cedula: "12345678",
-    telefono: "5551234",
-    direccion: "Calle 1",
-    observaciones: "",
-    condicion: "vivo" as const,
-    lugarId: new mongoose.Types.ObjectId(),
-    fuente: { tipo: "manual" as const, nombre: "Test source" },
-    createdAt: new Date(),
-    ...overrides,
-  };
-}
 
 beforeEach(() => {
   vi.clearAllMocks();

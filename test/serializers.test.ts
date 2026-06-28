@@ -1,42 +1,6 @@
-import type { LocalizadoSource, LugarSource } from "@/lib/mongoose-types";
+import { createLocalizadoSource, createLugarSource } from "./factories";
 import { toLocalizadoDTO, toLugarDTO } from "@/lib/serializers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-function createLugarSource(overrides: Partial<LugarSource> = {}): LugarSource {
-  return {
-    slug: "hospital-central",
-    nombre: "Hospital Central",
-    tipo: "hospital",
-    direccion: "Av. Principal",
-    ciudad: "Caracas",
-    estado: "Distrito Capital",
-    ...overrides,
-  };
-}
-
-function createLocalizadoSource(
-  overrides: Partial<LocalizadoSource> = {}
-): LocalizadoSource {
-  return {
-    slug: "juan-perez",
-    nombreCompleto: "Juan Perez",
-    edad: "30",
-    cedula: "12345678",
-    telefono: "5551234",
-    direccion: "Calle 1",
-    observaciones: "Observacion de prueba",
-    condicion: "vivo",
-    fuente: {
-      tipo: "manual",
-      nombre: "Test source",
-      url: "https://example.com",
-      notas: "Notas de prueba",
-      fecha: "2024-01-01",
-    },
-    createdAt: new Date("2024-01-15T10:30:00.000Z"),
-    ...overrides,
-  };
-}
 
 describe("toLugarDTO", () => {
   it("mapea slug, nombre y tipo correctamente", () => {
