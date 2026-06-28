@@ -1,7 +1,5 @@
 import { createHash, timingSafeEqual } from "crypto";
 
-export const ADMIN_COOKIE = "lv_admin";
-
 export function getAdminSecrets(): string[] {
   return (process.env.ADMIN_SECRET ?? "")
     .split(",")

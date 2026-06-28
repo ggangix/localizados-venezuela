@@ -3,10 +3,13 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { DesaparecidosLink } from "@/components/DesaparecidosLink";
 import { LocalizadoCard } from "@/components/LocalizadoCard";
+import { Pagination } from "@/components/Pagination";
 import { SearchForm } from "@/components/SearchForm";
 import { SearchResultsTracker } from "@/components/SearchResultsTracker";
 import { ShareButtons } from "@/components/ShareButtons";
+import { redirect } from "next/navigation";
 import { searchLocalizados } from "@/lib/queries";
+import { parsePageParam } from "@/lib/url";
 import { shareBusqueda } from "@/lib/share";
 
 export const metadata = {
@@ -20,10 +23,22 @@ export default async function BuscarPage({
 }) {
   const params = await searchParams;
   const q = params.q ?? "";
-  const page = Number(params.page ?? "1");
+  const page = parsePageParam(params.page);
   const result = q
     ? await searchLocalizados({ q, page, limit: 20 })
     : { data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+
+  if (q && result.meta.totalPages > 0 && result.meta.page > result.meta.totalPages) {
+    const qs = new URLSearchParams({ q, page: String(result.meta.totalPages) });
+    redirect(`/buscar?${qs.toString()}`);
+  }
+
+  function buildHref(p: number) {
+    const qs = new URLSearchParams();
+    if (q) qs.set("q", q);
+    qs.set("page", String(p));
+    return `/buscar?${qs.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -70,6 +85,15 @@ export default async function BuscarPage({
           </p>
         )}
       </div>
+
+      {q && (
+        <Pagination
+          page={result.meta.page}
+          totalPages={result.meta.totalPages}
+          total={result.meta.total}
+          buildHref={buildHref}
+        />
+      )}
     </div>
   );
 }

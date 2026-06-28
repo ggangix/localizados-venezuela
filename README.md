@@ -47,6 +47,38 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000).
 
+## Desarrollo con Docker
+
+Si prefieres no instalar Node.js ni MongoDB localmente, puedes levantar todo el entorno con Docker.
+
+**Requisitos:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (o Docker Engine + Compose).
+
+```bash
+cp .env.example .env.local   # si aún no lo has hecho
+docker compose up --build
+```
+
+Al arrancar, el contenedor:
+
+1. Espera a que MongoDB esté listo
+2. Ejecuta `seed:sample` automáticamente (3 lugares, 12 personas de prueba)
+3. Lanza el servidor de desarrollo con hot reload en [http://localhost:3000](http://localhost:3000)
+
+Los cambios en el código se reflejan en tiempo real — no hace falta reconstruir la imagen.
+
+### Comandos útiles
+
+```bash
+docker compose up --build      # primera vez o tras cambiar dependencias
+docker compose up              # arranques posteriores (sin reconstruir)
+docker compose down            # detener y eliminar contenedores
+docker compose down -v         # ídem + borrar datos de MongoDB
+docker compose exec app npm run seed:sample   # re-sembrar la BD manualmente
+docker compose exec app npm run lint          # linting dentro del contenedor
+```
+
+> **Nota:** el puerto 3000 debe estar libre en tu máquina. Si tienes otro proceso usándolo, detenlo antes de arrancar.
+
 ### Variables de entorno (`.env.local`)
 
 | Variable                         | Descripción                                             | Ejemplo local                                                 |
@@ -195,53 +227,20 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 
 ## Scripts de desarrollo
 
-| Comando            | Descripción                              |
-| ------------------ | ---------------------------------------- |
-| `npm run dev`      | Servidor de desarrollo                   |
-| `npm run build`    | Build de producción                      |
-| `npm run start`    | Servir build                             |
-| `npm run lint`     | ESLint                                   |
-| `npm run lint:fix` | ESLint con auto-fix                      |
-| `npm run format`   | Prettier                                 |
-| `npm run check`    | lint + format:check (lo que corre el CI) |
+| Comando              | Descripción                                     |
+| -------------------- | ----------------------------------------------- |
+| `npm run dev`        | Servidor de desarrollo (local)                  |
+| `npm run dev:docker` | Servidor de desarrollo (Docker, bind `0.0.0.0`) |
+| `npm run build`      | Build de producción                             |
+| `npm run start`      | Servir build                                    |
+| `npm run lint`       | ESLint                                          |
+| `npm run lint:fix`   | ESLint con auto-fix                             |
+| `npm run format`     | Prettier                                        |
+| `npm run check`      | lint + format:check (lo que corre el CI)        |
 
 ## Colaborar
 
-1. Haz fork del repo
-2. Crea una rama: `git checkout -b mi-feature`
-3. Instala y arranca con `npm run seed:sample && npm run dev`
-4. Haz tus cambios
-5. Asegúrate de que pasa el CI localmente:
-
-```bash
-npm run check
-npm run build
-```
-
-6. Abre un Pull Request en GitHub
-
-### Estilo de código
-
-- **ESLint** (config Next.js) + **Prettier** (con plugin Tailwind)
-- **Husky** + **lint-staged** formatean automáticamente al hacer commit
-- VS Code: instala las extensiones recomendadas (`.vscode/extensions.json`)
-
-### CI en Pull Requests
-
-GitHub Actions ejecuta en cada PR:
-
-- `npm run lint`
-- `npm run format:check`
-- `npm run build`
-
-### Ideas para contribuir
-
-- Mejorar búsqueda y deduplicación
-- Nuevas transcripciones en el [repo OCR](https://github.com/ecrespo/OCR-data_Terremoto_Venezuela_24062026) + `npm run seed:ocr`
-- Mejoras al panel de moderación (roles, historial de cambios, etc.)
-- Traducciones, accesibilidad, rendimiento móvil
-- Documentación de la API
-- Reportar bugs con datos de ejemplo en `seed/sample/`
+Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para instrucciones detalladas sobre requisitos, arranque, flujo de trabajo, buenas prácticas y cómo reportar bugs.
 
 ## Estructura del proyecto
 
