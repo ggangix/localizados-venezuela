@@ -147,13 +147,35 @@ export async function getLocalizadoBySlug(slug: string) {
 
 export async function listLugares(): Promise<LugarDTO[]> {
   await connectDB();
-  const lugares = await Lugar.find().sort({ nombre: 1 }).lean<LeanLugar[]>();
-  const counts = await Localizado.aggregate<{ _id: LeanLugar["_id"]; total: number }>([
-    { $match: PUBLISHED },
-    { $group: { _id: "$lugarId", total: { $sum: 1 } } },
+  const results = await Lugar.aggregate([
+    { $sort: { nombre: 1 } },
+    {
+      $lookup: {
+        from: Localizado.collection.name,
+        let: { lugarId: "$_id" },
+        pipeline: [
+          { $match: { ...PUBLISHED } },
+          { $match: { $expr: { $eq: ["$lugarId", "$$lugarId"] } } },
+          { $count: "n" },
+        ],
+        as: "counts",
+      },
+    },
+    {
+      $project: {
+        slug: 1,
+        nombre: 1,
+        tipo: 1,
+        direccion: 1,
+        ciudad: 1,
+        estado: 1,
+        totalLocalizados: { $ifNull: [{ $arrayElemAt: ["$counts.n", 0] }, 0] },
+      },
+    },
   ]);
-  const countMap = new Map(counts.map((c) => [String(c._id), c.total]));
-  return lugares.map((l) => toLugarDTO(l, countMap.get(String(l._id)) ?? 0));
+  return results.map((l: LeanLugar & { totalLocalizados: number }) =>
+    toLugarDTO(l, l.totalLocalizados)
+  );
 }
 
 type LugarFacetResult = {
