@@ -64,7 +64,7 @@ export async function searchLocalizados(params: {
   limit?: number;
 }): Promise<ApiListResponse<LocalizadoDTO>> {
   await connectDB();
-  const page = Math.max(1, params.page ?? 1);
+  const page = Math.max(1, Math.floor(params.page ?? 1));
   const limit = Math.min(100, Math.max(1, params.limit ?? 20));
 
   let lugarId: unknown;
@@ -167,7 +167,7 @@ export async function getLugarBySlug(slug: string, page = 1, limit = 50) {
   if (!lugar) return null;
 
   const safeLimit = Math.min(100, Math.max(1, limit));
-  const safePage = Math.max(1, page);
+  const safePage = Math.max(1, Math.floor(page));
 
   const [result] = await Localizado.aggregate<LugarFacetResult>([
     { $match: { lugarId: lugar._id, ...PUBLISHED } },
