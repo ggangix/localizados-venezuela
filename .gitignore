@@ -18,3 +18,4 @@ public/uploads/*
 .eslintcache
 *.tsbuildinfo
 .DS_Store
+.nvmrc

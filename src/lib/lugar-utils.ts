@@ -1,11 +1,17 @@
 import type { LugarTipo } from "@/lib/types";
 
-export function normalizeLugarKey(nombre: string): string {
+export function simpleLugarKey(nombre: string): string {
   return nombre
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/[^A-Z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function normalizeLugarKey(nombre: string): string {
+  return simpleLugarKey(nombre)
     .replace(/\bH\b/g, "HOSPITAL")
     .replace(/\bDR\b/g, "DOCTOR")
     .replace(/\bLG\b/g, "LA GUAIRA")

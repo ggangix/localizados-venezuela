@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { analytics } from "@/lib/analytics";
 import { getRecaptchaToken, loadRecaptchaScript } from "@/lib/recaptcha-client";
+import { LugarAutocomplete, type LugarOption } from "@/components/LugarAutocomplete";
 
 type Tab = "persona" | "lista_imagen";
 
@@ -10,9 +11,24 @@ export function ContribuirForm() {
   const [tab, setTab] = useState<Tab>("persona");
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lugares, setLugares] = useState<LugarOption[]>([]);
 
   useEffect(() => {
     loadRecaptchaScript();
+  }, []);
+
+  // Cargado una sola vez en el formulario (siempre montado) para no refetch al cambiar de pestaña.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/lugares")
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && Array.isArray(json?.data)) setLugares(json.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -95,12 +111,13 @@ export function ContribuirForm() {
               required
               className={inputClass}
             />
-            <Field
+            <LugarAutocomplete
               label="Lugar donde está *"
               name="lugarNombre"
               required
               className={inputClass}
               placeholder="Ej: Hospital Domingo Luciani"
+              lugares={lugares}
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Edad" name="edad" className={inputClass} />
