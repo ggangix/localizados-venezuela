@@ -30,6 +30,52 @@ const LIST_PROJECTION = {
 
 type LocalizadoListRow = LocalizadoSource & { lugarId: LeanLugar["_id"] };
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function buildSuggestionFilter(q?: string) {
+  const term = q?.trim();
+  if (!term) return null;
+
+  const normalized = term.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const escaped = escapeRegExp(normalized);
+  const regex = `(^|\\s)${escaped}`;
+  const digits = normalized.replace(/\D/g, "");
+
+  const clauses: Record<string, unknown>[] = [
+    { nombreCompleto: { $regex: regex, $options: "i" } },
+    { nombreNormalizado: { $regex: regex, $options: "i" } },
+  ];
+
+  if (digits) {
+    clauses.push({ cedula: { $regex: `^${escapeRegExp(digits)}`, $options: "i" } });
+    clauses.push({ telefono: { $regex: `^${escapeRegExp(digits)}`, $options: "i" } });
+  }
+
+  return {
+    estado: "published",
+    deletedAt: { $exists: false },
+    $or: clauses,
+  };
+}
+
+async function serializeLocalizadoRows(
+  rows: LocalizadoListRow[]
+): Promise<LocalizadoDTO[]> {
+  if (rows.length === 0) return [];
+
+  const lugarIds = [...new Set(rows.map((r) => String(r.lugarId)))];
+  const lugares = await Lugar.find({ _id: { $in: lugarIds } }).lean<LeanLugar[]>();
+  const lugarMap = new Map(lugares.map((l) => [String(l._id), l]));
+
+  return rows.flatMap((row) => {
+    const lugar = lugarMap.get(String(row.lugarId));
+    if (!lugar) return [];
+    return [toLocalizadoDTO(row, lugar)];
+  });
+}
+
 function buildSearchFilter(q?: string, lugarId?: unknown) {
   const filter: Record<string, unknown> = { ...PUBLISHED };
   if (lugarId) filter.lugarId = lugarId;
@@ -55,6 +101,37 @@ export async function getStats() {
     Localizado.countDocuments({ estado: "pending" }),
   ]);
   return { totalLocalizados, totalLugares, totalPendientes };
+}
+
+export async function searchLocalizadoSuggestions(
+  q?: string,
+  limit = 5
+): Promise<ApiListResponse<LocalizadoDTO>> {
+  await connectDB();
+  const safeLimit = Math.min(10, Math.max(1, Math.floor(limit || 5)));
+  const filter = buildSuggestionFilter(q);
+
+  if (!filter) {
+    return { data: [], meta: { page: 1, limit: safeLimit, total: 0, totalPages: 0 } };
+  }
+
+  const [rows, total] = await Promise.all([
+    Localizado.find(filter, LIST_PROJECTION)
+      .sort({ nombreCompleto: 1 })
+      .limit(safeLimit)
+      .lean<LocalizadoListRow[]>(),
+    Localizado.countDocuments(filter),
+  ]);
+
+  return {
+    data: await serializeLocalizadoRows(rows),
+    meta: {
+      page: 1,
+      limit: safeLimit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+    },
+  };
 }
 
 export async function searchLocalizados(params: {
@@ -99,15 +176,7 @@ export async function searchLocalizados(params: {
     };
   }
 
-  const lugarIds = [...new Set(rows.map((r) => String(r.lugarId)))];
-  const lugares = await Lugar.find({ _id: { $in: lugarIds } }).lean<LeanLugar[]>();
-  const lugarMap = new Map(lugares.map((l) => [String(l._id), l]));
-
-  const data = rows.flatMap((row) => {
-    const lugar = lugarMap.get(String(row.lugarId));
-    if (!lugar) return [];
-    return [toLocalizadoDTO(row, lugar)];
-  });
+  const data = await serializeLocalizadoRows(rows);
 
   return {
     data,
