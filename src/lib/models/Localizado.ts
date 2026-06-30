@@ -48,7 +48,13 @@ const localizadoSchema = new Schema(
 
 localizadoSchema.index(
   { nombreCompleto: "text", cedula: "text", observaciones: "text" },
-  { name: "localizado_text", default_language: "spanish" }
+  {
+    name: "localizado_text",
+    default_language: "spanish",
+    // El nombre pesa más que la cédula, y ambos más que las observaciones,
+    // para que los aciertos por nombre suban primero al ordenar por textScore.
+    weights: { nombreCompleto: 10, cedula: 5, observaciones: 1 },
+  }
 );
 
 // Consultas frecuentes en runtime

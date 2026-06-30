@@ -3,7 +3,7 @@ node_modules
 out
 
 # secrets / entorno local
-.env
+.env.local
 .env.*
 !.env.example
 bun.lock

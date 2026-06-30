@@ -31,11 +31,27 @@ npm install
 cp .env.example .env.local
 ```
 
-Levanta MongoDB (ejemplo si lo tienes instalado localmente):
+> Usa `.env.local`. Tanto Next.js (`npm run dev`) como los scripts de seed (vía
+> `tsx --env-file=.env.local`) lo leen. Está en `.gitignore`, así que tus credenciales no se suben.
+
+Levanta MongoDB. Dos opciones comunes:
 
 ```bash
-# Windows / macOS / Linux — depende de tu instalación
+# A) Instalado localmente, sin autenticación
 mongod
+
+# B) En Docker con usuario/clave (lo más habitual)
+docker run -d --name mongo -p 27017:27017 \
+  -e MONGO_INITDB_ROOT_USERNAME=root \
+  -e MONGO_INITDB_ROOT_PASSWORD=123456 \
+  mongo:7
+```
+
+Si usas la opción **B (Docker con autenticación)**, tu `MONGODB_URI` en `.env.local` debe llevar
+las credenciales **y** `?authSource=admin` (el usuario `root` vive en la base `admin`):
+
+```env
+MONGODB_URI=mongodb://root:123456@localhost:27017/localizados_venezuela?authSource=admin
 ```
 
 Carga datos de prueba e inicia el servidor:
@@ -81,17 +97,17 @@ docker compose exec app npm run lint          # linting dentro del contenedor
 
 ### Variables de entorno (`.env.local`)
 
-| Variable                         | Descripción                                             | Ejemplo local                                                 |
-| -------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------- |
-| `MONGODB_URI`                    | Conexión a MongoDB                                      | `mongodb://127.0.0.1:27017/localizados_venezuela`             |
-| `NEXT_PUBLIC_SITE_URL`           | URL base del sitio (SEO, compartir)                     | `http://localhost:3000`                                       |
-| `UPLOAD_DIR`                     | Carpeta para imágenes subidas                           | `./public/uploads`                                            |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Site key pública de reCAPTCHA v3                        | Ver `.env.example`                                            |
-| `RECAPTCHA_SECRET`               | Secret de reCAPTCHA v3 (solo servidor)                  | Desde Google reCAPTCHA admin                                  |
-| `NEXT_PUBLIC_GA_MEASUREMENT_ID`  | ID de Google Analytics 4                                | `G-GNN3P1WQW4`                                                |
-| `ADMIN_SECRET`                   | Clave(s) del panel `/admin` (coma = varios moderadores) | Generar con `npm run admin:secret`                            |
-| `OPENAI_API_KEY`                 | OCR de imágenes en el panel (OpenAI Vision)             | `sk-...` desde [OpenAI](https://platform.openai.com/api-keys) |
-| `OPENAI_OCR_MODEL`               | Modelo Vision (opcional)                                | `gpt-4o-mini` (default)                                       |
+| Variable                         | Descripción                                                      | Ejemplo local                                                 |
+| -------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
+| `MONGODB_URI`                    | Conexión a MongoDB (con `?authSource=admin` si Mongo tiene auth) | `mongodb://127.0.0.1:27017/localizados_venezuela`             |
+| `NEXT_PUBLIC_SITE_URL`           | URL base del sitio (SEO, compartir)                              | `http://localhost:3000`                                       |
+| `UPLOAD_DIR`                     | Carpeta para imágenes subidas                                    | `./public/uploads`                                            |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Site key pública de reCAPTCHA v3                                 | Ver `.env.example`                                            |
+| `RECAPTCHA_SECRET`               | Secret de reCAPTCHA v3 (solo servidor)                           | Desde Google reCAPTCHA admin                                  |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID`  | ID de Google Analytics 4                                         | `G-GNN3P1WQW4`                                                |
+| `ADMIN_SECRET`                   | Clave(s) del panel `/admin` (coma = varios moderadores)          | Generar con `npm run admin:secret`                            |
+| `OPENAI_API_KEY`                 | OCR de imágenes en el panel (OpenAI Vision)                      | `sk-...` desde [OpenAI](https://platform.openai.com/api-keys) |
+| `OPENAI_OCR_MODEL`               | Modelo Vision (opcional)                                         | `gpt-4o-mini` (default)                                       |
 
 ## Panel de moderación (fase 2)
 
@@ -183,6 +199,19 @@ npm run seed          # dataset completo si existe seed/lugares.json
 ```
 
 Si clonas el repo y solo existe `sample/`, `npm run seed` usa ese subset automáticamente.
+
+**Cómo se conecta el seed:** los scripts corren con `tsx --env-file=.env.local`, así que
+leen `MONGODB_URI` de tu archivo `.env.local`. Asegúrate de tenerlo creado
+(`cp .env.example .env.local`) **antes** de correr el seed.
+
+> ⚠️ **Error `Command findAndModify requires authentication` (code 13 / Unauthorized)**
+> Significa que el seed se conectó a Mongo **sin credenciales**. Causas típicas:
+>
+> 1. No existe `.env.local` o no define `MONGODB_URI` → el script usa el default sin usuario/clave.
+> 2. Tu Mongo tiene autenticación (Docker) pero la URI no lleva `?authSource=admin`.
+>
+> Solución: pon en `.env.local` la URI completa, p. ej.
+> `mongodb://root:123456@localhost:27017/localizados_venezuela?authSource=admin`.
 
 Más detalle en [`seed/README.md`](seed/README.md).
 

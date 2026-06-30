@@ -1,4 +1,5 @@
 import { connectDB } from "@/lib/db";
+import { CONDICIONES, EDAD_MAX, EDAD_MIN, LUGAR_TIPOS } from "@/lib/constants";
 import { Localizado } from "@/lib/models/Localizado";
 import { Lugar } from "@/lib/models/Lugar";
 import type {
@@ -7,12 +8,36 @@ import type {
   LocalizadoWithLugar,
 } from "@/lib/mongoose-types";
 import { toLocalizadoDTO, toLugarDTO } from "@/lib/serializers";
-import type { ApiListResponse, LocalizadoDTO, LugarDTO } from "@/lib/types";
+import type {
+  ApiListResponse,
+  CondicionPersona,
+  LocalizadoDTO,
+  LugarDTO,
+  LugarTipo,
+} from "@/lib/types";
 
 const PUBLISHED = {
   estado: "published" as const,
   $or: [{ deletedAt: { $exists: false } }, { deletedAt: null }],
 };
+
+/** Valida/normaliza filtros que llegan como string crudo desde la URL. */
+export function coerceCondicion(v?: string | null): CondicionPersona | undefined {
+  return v && CONDICIONES.includes(v as CondicionPersona)
+    ? (v as CondicionPersona)
+    : undefined;
+}
+
+export function coerceTipo(v?: string | null): LugarTipo | undefined {
+  return v && LUGAR_TIPOS.includes(v as LugarTipo) ? (v as LugarTipo) : undefined;
+}
+
+export function coerceEdad(v?: string | null): number | undefined {
+  if (v == null || v === "") return undefined;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < EDAD_MIN || n > EDAD_MAX) return undefined;
+  return Math.floor(n);
+}
 
 const LIST_PROJECTION = {
   slug: 1,
@@ -30,25 +55,79 @@ const LIST_PROJECTION = {
 
 type LocalizadoListRow = LocalizadoSource & { lugarId: LeanLugar["_id"] };
 
-function buildSearchFilter(q?: string, lugarId?: unknown) {
+/**
+ * Resuelve a qué lugares acotar la búsqueda según slug y/o tipo.
+ * - ids === null  → sin restricción por lugar
+ * - noMatch === true → ningún lugar coincide, la búsqueda debe devolver vacío
+ */
+async function resolveLugarConstraint(
+  lugarSlug?: string,
+  tipo?: LugarTipo
+): Promise<{ ids: LeanLugar["_id"][] | null; noMatch: boolean }> {
+  if (!lugarSlug && !tipo) return { ids: null, noMatch: false };
+
+  const lugarFilter: Record<string, unknown> = {};
+  if (lugarSlug) lugarFilter.slug = lugarSlug;
+  if (tipo) lugarFilter.tipo = tipo;
+
+  const lugares = await Lugar.find(lugarFilter)
+    .select("_id")
+    .lean<{ _id: LeanLugar["_id"] }[]>();
+
+  if (lugares.length === 0) return { ids: [], noMatch: true };
+  return { ids: lugares.map((l) => l._id), noMatch: false };
+}
+
+function buildSearchFilter(opts: {
+  q?: string;
+  lugarIds?: LeanLugar["_id"][] | null;
+  condicion?: CondicionPersona;
+  edadMin?: number;
+  edadMax?: number;
+}) {
+  const { q, lugarIds, condicion, edadMin, edadMax } = opts;
   const filter: Record<string, unknown> = { ...PUBLISHED };
-  if (lugarId) filter.lugarId = lugarId;
 
-  const term = q?.trim();
-  if (!term) return filter;
-
-  const digits = term.replace(/\D/g, "");
-  if (digits.length >= 4) {
-    // Igualdad exacta, no subcadena. `new RegExp(digits)` sin anclar matcheaba
-    // cualquier cédula que CONTUVIERA esos dígitos, lo que permitía enumerar
-    // toda la PII del registro desde la API pública (sin auth) iterando
-    // fragmentos, además de forzar un COLLSCAN. Una cédula es un identificador:
-    // se busca por su valor completo.
-    filter.cedula = digits;
-    return filter;
+  if (lugarIds && lugarIds.length > 0) {
+    filter.lugarId = lugarIds.length === 1 ? lugarIds[0] : { $in: lugarIds };
   }
 
-  filter.$text = { $search: term };
+  if (condicion) filter.condicion = condicion;
+
+  // `edad` se guarda como String heterogéneo ("74", "8 años", "") →
+  // extraemos el primer número con regex y lo convertimos a int en la consulta.
+  // Sin dígitos (o vacío) queda en null y se excluye del rango.
+  if (edadMin != null || edadMax != null) {
+    const edadDigits = {
+      $let: {
+        vars: {
+          m: { $regexFind: { input: { $toString: "$edad" }, regex: "[0-9]+" } },
+        },
+        in: "$$m.match",
+      },
+    };
+    const edadInt = {
+      $convert: { input: edadDigits, to: "int", onError: null, onNull: null },
+    };
+    const conds: unknown[] = [{ $ne: [edadInt, null] }];
+    if (edadMin != null) conds.push({ $gte: [edadInt, edadMin] });
+    if (edadMax != null) conds.push({ $lte: [edadInt, edadMax] });
+    filter.$expr = { $and: conds };
+  }
+
+  const term = q?.trim();
+  if (term) {
+    const digits = term.replace(/\D/g, "");
+    const letters = (term.match(/[a-zA-Z]/g) ?? []).length;
+    // Cédula solo si el término es predominantemente numérico (permite prefijo
+    // V/E). Igualdad exacta (#53): evita enumeración por subcadena en API pública.
+    if (digits.length >= 4 && letters <= 1) {
+      filter.cedula = digits;
+    } else {
+      filter.$text = { $search: term };
+    }
+  }
+
   return filter;
 }
 
@@ -65,6 +144,10 @@ export async function getStats() {
 export async function searchLocalizados(params: {
   q?: string;
   lugar?: string;
+  condicion?: CondicionPersona;
+  tipo?: LugarTipo;
+  edadMin?: number;
+  edadMax?: number;
   page?: number;
   limit?: number;
 }): Promise<ApiListResponse<LocalizadoDTO>> {
@@ -72,16 +155,21 @@ export async function searchLocalizados(params: {
   const page = Math.max(1, Math.floor(params.page ?? 1));
   const limit = Math.min(100, Math.max(1, params.limit ?? 20));
 
-  let lugarId: unknown;
-  if (params.lugar) {
-    const lugar = await Lugar.findOne({ slug: params.lugar }).select("_id").lean();
-    if (!lugar) {
-      return { data: [], meta: { page, limit, total: 0, totalPages: 0 } };
-    }
-    lugarId = lugar._id;
+  const { ids: lugarFilterIds, noMatch } = await resolveLugarConstraint(
+    params.lugar,
+    params.tipo
+  );
+  if (noMatch) {
+    return { data: [], meta: { page, limit, total: 0, totalPages: 0 } };
   }
 
-  const filter = buildSearchFilter(params.q, lugarId);
+  const filter = buildSearchFilter({
+    q: params.q,
+    lugarIds: lugarFilterIds,
+    condicion: params.condicion,
+    edadMin: params.edadMin,
+    edadMax: params.edadMax,
+  });
   const usesText = "$text" in filter;
 
   const query = Localizado.find(filter, LIST_PROJECTION)
