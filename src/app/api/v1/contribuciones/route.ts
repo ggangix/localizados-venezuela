@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { escapeRegex, isSameOriginRequest, jsonResponse } from "@/lib/api";
@@ -19,6 +19,68 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/gif",
   "image/webp",
 ]);
+
+// Tipo validado por contenido → extensión en disco. Nunca se usa el nombre del cliente.
+type ImageType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+const IMAGE_EXT: Record<ImageType, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+
+/**
+ * Determina el tipo real de la imagen por su firma de bytes (magic bytes),
+ * ignorando el Content-Type declarado por el cliente, que es falsificable.
+ * Devuelve null si el contenido no corresponde a una imagen permitida
+ * (p. ej. un .html o .svg renombrado y declarado como imagen).
+ */
+function detectImageType(buffer: Buffer): ImageType | null {
+  if (buffer.length < 12) return null;
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  // GIF: "GIF87a" / "GIF89a"
+  if (
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38 &&
+    (buffer[4] === 0x37 || buffer[4] === 0x39) &&
+    buffer[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+  // WebP: "RIFF" .... "WEBP"
+  if (
+    buffer[0] === 0x52 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x46 &&
+    buffer[8] === 0x57 &&
+    buffer[9] === 0x45 &&
+    buffer[10] === 0x42 &&
+    buffer[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
 
 function hashIp(req: Request): string {
   const ip =
@@ -84,9 +146,24 @@ export async function POST(req: Request) {
       return jsonResponse({ error: imageError }, { status: 400 });
     }
 
-    await mkdir(UPLOAD_DIR, { recursive: true });
-    const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Barrera real: el tipo se valida por la firma de bytes del contenido,
+    // no por file.type (que el atacante controla). Esto bloquea subir un
+    // .html/.svg ejecutable declarándolo como image/png.
+    const detectedType = detectImageType(buffer);
+    if (!detectedType) {
+      return jsonResponse(
+        { error: "El archivo no es una imagen válida (JPEG, PNG, GIF o WebP)" },
+        { status: 400 }
+      );
+    }
+
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    // Nombre aleatorio + extensión derivada del tipo validado (nunca del
+    // nombre del cliente), para que el archivo no pueda servirse como HTML
+    // ni tener una URL adivinable.
+    const safeName = `${randomUUID()}.${IMAGE_EXT[detectedType]}`;
     const fullPath = path.join(UPLOAD_DIR, safeName);
     await writeFile(fullPath, buffer);
 

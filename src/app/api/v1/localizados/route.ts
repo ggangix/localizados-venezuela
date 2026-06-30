@@ -1,4 +1,4 @@
-import { corsJson, corsOptions } from "@/lib/api";
+import { corsJson, corsOptions, parseIntParam } from "@/lib/api";
 import {
   coerceCondicion,
   coerceEdad,
@@ -15,8 +15,8 @@ export async function GET(req: Request) {
   const tipo = coerceTipo(sp.get("tipo"));
   const edadMin = coerceEdad(sp.get("edadMin"));
   const edadMax = coerceEdad(sp.get("edadMax"));
-  const page = Number(sp.get("page") ?? "1");
-  const limit = Number(sp.get("limit") ?? "20");
+  const page = parseIntParam(sp.get("page"), 1);
+  const limit = parseIntParam(sp.get("limit"), 20);
 
   const result = await searchLocalizados({
     q,

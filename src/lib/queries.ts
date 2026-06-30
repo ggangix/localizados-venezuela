@@ -119,12 +119,10 @@ function buildSearchFilter(opts: {
   if (term) {
     const digits = term.replace(/\D/g, "");
     const letters = (term.match(/[a-zA-Z]/g) ?? []).length;
-    // Cédula solo si el término es predominantemente numérico (permite un
-    // prefijo tipo V/E). Coincide por prefijo y anclado al inicio para poder
-    // usar el índice `cedula` y evitar falsos positivos por substring.
-    // `digits` solo contiene [0-9], así que es seguro en el patrón.
+    // Cédula solo si el término es predominantemente numérico (permite prefijo
+    // V/E). Igualdad exacta (#53): evita enumeración por subcadena en API pública.
     if (digits.length >= 4 && letters <= 1) {
-      filter.cedula = new RegExp("^" + digits);
+      filter.cedula = digits;
     } else {
       filter.$text = { $search: term };
     }
@@ -154,7 +152,7 @@ export async function searchLocalizados(params: {
   limit?: number;
 }): Promise<ApiListResponse<LocalizadoDTO>> {
   await connectDB();
-  const page = Math.max(1, params.page ?? 1);
+  const page = Math.max(1, Math.floor(params.page ?? 1));
   const limit = Math.min(100, Math.max(1, params.limit ?? 20));
 
   const { ids: lugarFilterIds, noMatch } = await resolveLugarConstraint(
@@ -262,7 +260,7 @@ export async function getLugarBySlug(slug: string, page = 1, limit = 50) {
   if (!lugar) return null;
 
   const safeLimit = Math.min(100, Math.max(1, limit));
-  const safePage = Math.max(1, page);
+  const safePage = Math.max(1, Math.floor(page));
 
   const [result] = await Localizado.aggregate<LugarFacetResult>([
     { $match: { lugarId: lugar._id, ...PUBLISHED } },

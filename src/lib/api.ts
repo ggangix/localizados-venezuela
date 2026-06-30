@@ -8,6 +8,18 @@ export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Parsea un parámetro de query como entero positivo. Devuelve `fallback`
+ * cuando el valor falta o no es un entero >= 1 (p. ej. "abc", "2.5",
+ * "Infinity", "-3", ""). Evita que NaN/Infinity lleguen a skip()/limit() y
+ * tiren un 500 sin manejar.
+ */
+export function parseIntParam(value: string | null, fallback: number): number {
+  if (value === null || value.trim() === "") return fallback;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 ? n : fallback;
+}
+
 function allowedOrigins(): string[] {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   const origins = ["http://localhost:3000", "http://127.0.0.1:3000"];

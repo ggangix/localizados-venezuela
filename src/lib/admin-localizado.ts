@@ -192,6 +192,72 @@ export async function restoreLocalizados(ids: string[]) {
   return result.modifiedCount;
 }
 
+export type BulkActionResult = { id: string; ok: boolean; error?: string };
+
+/**
+ * Cambia el estado de varios localizados en una sola operación `bulkWrite`,
+ * devolviendo un reporte granular por registro. Valida duplicados publicados
+ * (incluyendo duplicados dentro de la misma selección) antes de escribir.
+ */
+export async function setEstadoLocalizados(
+  ids: string[],
+  estado: EstadoPublicacion
+): Promise<{ results: BulkActionResult[]; affected: number; total: number }> {
+  await connectDB();
+
+  const docs = await Localizado.find({ _id: { $in: ids } });
+  const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
+
+  const results: BulkActionResult[] = [];
+  const ops: Parameters<typeof Localizado.bulkWrite>[0] = [];
+  const seenPublished = new Set<string>();
+
+  for (const id of ids) {
+    const doc = byId.get(id);
+    if (!doc) {
+      results.push({ id, ok: false, error: "Persona no encontrada" });
+      continue;
+    }
+
+    if (estado === "published" && !doc.deletedAt) {
+      const key = `${doc.lugarId}|${doc.nombreNormalizado}`;
+      if (seenPublished.has(key)) {
+        results.push({ id, ok: false, error: "Duplicado dentro de la selección" });
+        continue;
+      }
+      const dup = await Localizado.findOne({
+        _id: { $ne: doc._id },
+        lugarId: doc.lugarId,
+        nombreNormalizado: doc.nombreNormalizado,
+        estado: "published",
+        $or: [{ deletedAt: { $exists: false } }, { deletedAt: null }],
+      });
+      if (dup) {
+        results.push({
+          id,
+          ok: false,
+          error:
+            "Conflicto: ya existe otra persona publicada con ese nombre en el lugar",
+        });
+        continue;
+      }
+      seenPublished.add(key);
+    }
+
+    ops.push({
+      updateOne: { filter: { _id: doc._id }, update: { $set: { estado } } },
+    });
+    results.push({ id, ok: true });
+  }
+
+  if (ops.length) {
+    await Localizado.bulkWrite(ops);
+  }
+
+  const affected = results.filter((r) => r.ok).length;
+  return { results, affected, total: ids.length };
+}
+
 export async function moveLocalizados(ids: string[], lugarId: string) {
   await connectDB();
   const lugar = await Lugar.findById(lugarId);

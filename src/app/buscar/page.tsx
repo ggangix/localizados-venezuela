@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { DesaparecidosLink } from "@/components/DesaparecidosLink";
 import { LocalizadoCard } from "@/components/LocalizadoCard";
+import { Pagination } from "@/components/Pagination";
 import { SearchForm } from "@/components/SearchForm";
 import { SearchResultsTracker } from "@/components/SearchResultsTracker";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -13,10 +15,30 @@ import {
   searchLocalizados,
 } from "@/lib/queries";
 import { shareBusqueda } from "@/lib/share";
+import type { CondicionPersona, LugarTipo } from "@/lib/types";
+import { parsePageParam } from "@/lib/url";
 
 export const metadata = {
   title: "Buscar localizados",
 };
+
+function buildSearchQueryString(opts: {
+  q?: string;
+  condicion?: CondicionPersona;
+  tipo?: LugarTipo;
+  edadMin?: number;
+  edadMax?: number;
+  page?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (opts.q) qs.set("q", opts.q);
+  if (opts.condicion) qs.set("condicion", opts.condicion);
+  if (opts.tipo) qs.set("tipo", opts.tipo);
+  if (opts.edadMin != null) qs.set("edadMin", String(opts.edadMin));
+  if (opts.edadMax != null) qs.set("edadMax", String(opts.edadMax));
+  if (opts.page != null) qs.set("page", String(opts.page));
+  return qs;
+}
 
 export default async function BuscarPage({
   searchParams,
@@ -36,7 +58,7 @@ export default async function BuscarPage({
   const tipo = coerceTipo(params.tipo);
   const edadMin = coerceEdad(params.edadMin);
   const edadMax = coerceEdad(params.edadMax);
-  const page = Number(params.page ?? "1");
+  const page = parsePageParam(params.page);
 
   const hasFilters = Boolean(condicion || tipo || edadMin != null || edadMax != null);
   const hasQuery = Boolean(q || hasFilters);
@@ -52,6 +74,34 @@ export default async function BuscarPage({
         limit: 20,
       })
     : { data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+
+  if (
+    hasQuery &&
+    result.meta.totalPages > 0 &&
+    result.meta.page > result.meta.totalPages
+  ) {
+    const qs = buildSearchQueryString({
+      q: q || undefined,
+      condicion,
+      tipo,
+      edadMin,
+      edadMax,
+      page: result.meta.totalPages,
+    });
+    redirect(`/buscar?${qs.toString()}`);
+  }
+
+  function buildHref(p: number) {
+    const qs = buildSearchQueryString({
+      q: q || undefined,
+      condicion,
+      tipo,
+      edadMin,
+      edadMax,
+      page: p,
+    });
+    return `/buscar?${qs.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -100,6 +150,15 @@ export default async function BuscarPage({
           </p>
         )}
       </div>
+
+      {hasQuery && result.meta.totalPages > 1 && (
+        <Pagination
+          page={result.meta.page}
+          totalPages={result.meta.totalPages}
+          total={result.meta.total}
+          buildHref={buildHref}
+        />
+      )}
     </div>
   );
 }

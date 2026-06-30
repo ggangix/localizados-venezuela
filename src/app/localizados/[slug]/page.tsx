@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LugarLink } from "@/components/LugarLink";
 import { ShareButtons } from "@/components/ShareButtons";
+import { GoBackButton } from "@/components/GoBackButton";
 import { getLocalizadoBySlug } from "@/lib/queries";
 import { absoluteUrl, shareLocalizado } from "@/lib/share";
 
@@ -48,7 +49,10 @@ export default async function LocalizadoPage({ params }: Props) {
   return (
     <article className="space-y-6">
       <header className="space-y-2">
-        <p className="text-sm font-medium text-brand-600">Persona localizada</p>
+        <div className="mb-4 flex flex-row items-center gap-4">
+          <GoBackButton route={"/lugares/" + localizado.lugarSlug} />
+          <p className="text-sm font-medium text-brand-600">Persona localizada</p>
+        </div>
         <h1 className="text-3xl font-bold">{localizado.nombreCompleto}</h1>
         <p className="text-lg text-slate-600">
           En{" "}
