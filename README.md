@@ -173,6 +173,67 @@ docker compose build localizados-venezuela
 docker compose up -d localizados-venezuela
 ```
 
+## Integración con desaparecidos (webhooks salientes)
+
+Para **cerrar el ciclo** entre los dos registros hermanos, este proyecto puede avisar
+a [desaparecidosterremotovenezuela.com](https://desaparecidosterremotovenezuela.com/)
+(u otro socio) **cuando se publica un Localizado**, para que el otro sistema marque su
+reporte de desaparecido como encontrado.
+
+- **No hace scraping**: solo **enviamos** nuestros datos (que ya son públicos vía
+  `/api/v1/localizados`). No leemos su API (está protegida con reCAPTCHA, por diseño).
+  El intercambio de lectura debe coordinarse con su equipo (`developer@theempire.tech`).
+- **Best-effort y no bloqueante**: se dispara en segundo plano; un fallo no afecta al panel.
+- **Firmado**: si el webhook tiene secreto, el cuerpo se firma con HMAC-SHA256 en la
+  cabecera `X-LV-Signature` para que el socio verifique autenticidad e integridad.
+- **Reintentos**: cada envío se registra (`WebhookDelivery`) y se reintenta con backoff
+  (hasta 5 intentos). Tras un reinicio, `POST /api/admin/webhook-deliveries/process`
+  (ideal para un cron) reprocesa los pendientes vencidos.
+
+### Gestión desde el panel (`/admin` → pestaña **Webhooks**)
+
+Los moderadores pueden **crear, editar, activar/desactivar y borrar** endpoints sin
+redeploy, elegir el secreto y los eventos, **probar** la conexión con un ping y ver el
+**historial de entregas** (con reintento manual). Soporta **varios** destinos.
+
+### Fallback por variable de entorno (opcional)
+
+Además de los webhooks del panel, si defines estas variables se añade un destino fijo
+(útil para automatización/CI). Si no, no pasa nada:
+
+```env
+DESAPARECIDOS_WEBHOOK_URL=https://api-del-socio.example/webhooks/localizados
+DESAPARECIDOS_WEBHOOK_SECRET=un_secreto_compartido
+```
+
+### Cuándo se dispara
+
+Cada vez que un `Localizado` queda **publicado y visible**: al crearlo publicado, al
+**aprobar** una contribución, en la acción masiva **publish** y al importar por OCR.
+
+### Forma del payload (`POST`)
+
+```json
+{
+  "event": "localizado.published",
+  "occurredAt": "2026-06-27T01:23:45.000Z",
+  "source": "localizadosvenezuela.com",
+  "localizado": {
+    "slug": "juan-perez-ab12cd",
+    "url": "https://localizadosvenezuela.com/localizados/juan-perez-ab12cd",
+    "nombreCompleto": "JUAN PEREZ",
+    "nombreNormalizado": "JUAN PEREZ",
+    "cedula": "12345678",
+    "edad": "34",
+    "condicion": "vivo",
+    "lugarNombre": "Hospital Domingo Luciani"
+  }
+}
+```
+
+Archivos clave: `src/lib/webhooks.ts`, modelos `Webhook` / `WebhookDelivery`, y la
+pestaña **Webhooks** en `src/components/admin/AdminPanel.tsx`.
+
 ## Datos de prueba (seed)
 
 El repo incluye **`seed/sample/`** para desarrollar sin archivos externos:

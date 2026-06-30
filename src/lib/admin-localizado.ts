@@ -6,6 +6,7 @@ import { Lugar } from "@/lib/models/Lugar";
 import type { OcrRow } from "@/lib/ocr-parser";
 import { makeSlug, makeUniqueSlug } from "@/lib/slug";
 import type { CondicionPersona, EstadoPublicacion, FuenteInfo } from "@/lib/types";
+import { dispatchLocalizadoPublished } from "@/lib/webhooks";
 
 export type PersonaInput = {
   nombreCompleto: string;
@@ -65,7 +66,7 @@ export async function createLocalizado(input: PersonaInput) {
     if (dup) throw new Error(`Ya existe publicado: ${nombreCompleto}`);
   }
 
-  return Localizado.create({
+  const doc = await Localizado.create({
     slug: makeUniqueSlug(nombreCompleto, input.cedula),
     nombreCompleto,
     nombreNormalizado: normalizeNombre(nombreCompleto),
@@ -82,6 +83,11 @@ export async function createLocalizado(input: PersonaInput) {
       ? new mongoose.Types.ObjectId(input.contribucionId)
       : undefined,
   });
+
+  // Si nace publicado, avisa al sitio socio (no-op si el webhook no está configurado).
+  dispatchLocalizadoPublished(doc);
+
+  return doc;
 }
 
 export async function createLocalizadosFromOcr(
@@ -171,6 +177,10 @@ export async function updateLocalizado(
   }
 
   await doc.save();
+
+  // Publicar (incluye la acción masiva "publish" y aprobar contribución) avisa al socio.
+  if (patch.estado === "published") dispatchLocalizadoPublished(doc);
+
   return doc;
 }
 
