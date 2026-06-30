@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
-import { DisclaimerBanner } from "@/components/DisclaimerBanner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
@@ -39,7 +38,6 @@ export default function RootLayout({
     <html lang="es">
       <body className={inter.className}>
         <GoogleAnalytics />
-        <DisclaimerBanner />
         <SiteHeader />
         <main className="mx-auto min-h-[70vh] max-w-5xl px-3 py-5 pb-24 sm:px-4 sm:py-8 sm:pb-8">
           {children}
