@@ -1,4 +1,4 @@
-import { jsonResponse } from "@/lib/api";
+import { escapeRegex, jsonResponse } from "@/lib/api";
 import { withErrorHandler } from "@/lib/api-middleware";
 import { requireAdmin } from "@/lib/admin-auth";
 import { connectDB } from "@/lib/db";
@@ -54,7 +54,7 @@ export const POST = withErrorHandler(async (req: Request) => {
   await connectDB();
   const existing = await Lugar.findOne({
     nombre: {
-      $regex: new RegExp(`^${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      $regex: new RegExp(`^${escapeRegex(nombre)}$`, "i"),
     },
   });
   if (existing) {
