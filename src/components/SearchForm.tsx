@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { analytics } from "@/lib/analytics";
+import { shouldSubmitSearch } from "@/lib/search";
 import {
   CONDICION_LABELS,
   CONDICIONES,
@@ -33,12 +34,20 @@ export function SearchForm({
   const [tipo, setTipo] = useState(params.get("tipo") ?? "");
   const [edadMin, setEdadMin] = useState(params.get("edadMin") ?? "");
   const [edadMax, setEdadMax] = useState(params.get("edadMax") ?? "");
+  const [emptyHint, setEmptyHint] = useState(false);
 
   const hasFilters = Boolean(condicion || tipo || edadMin || edadMax);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = q.trim();
+    // Sin texto real ni filtros no hay nada que buscar: evitamos la
+    // redirección vacía a /buscar y avisamos en vez de navegar.
+    if (!shouldSubmitSearch(q, hasFilters)) {
+      setEmptyHint(true);
+      return;
+    }
+    setEmptyHint(false);
     if (trimmed) analytics.search(trimmed.length, source);
 
     const next = new URLSearchParams(params.toString());
@@ -67,10 +76,15 @@ export function SearchForm({
         <input
           type="search"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            if (emptyHint) setEmptyHint(false);
+          }}
           placeholder="Nombre, cédula u observación..."
           className="min-h-12 flex-1 rounded-xl border border-slate-300 px-4 py-3 text-base shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
           aria-label="Buscar localizado"
+          aria-invalid={emptyHint}
+          aria-describedby={emptyHint ? "buscar-hint" : undefined}
           enterKeyHint="search"
           autoComplete="off"
         />
@@ -81,6 +95,12 @@ export function SearchForm({
           Buscar
         </button>
       </div>
+
+      {emptyHint && (
+        <p id="buscar-hint" role="alert" className="text-sm text-red-600">
+          Escribe un nombre, cédula u observación para buscar.
+        </p>
+      )}
 
       {showFilters && (
         <div className="flex flex-wrap items-center gap-2">
