@@ -16,7 +16,7 @@ export function LocalizadoCard({
   const share = shareLocalizado(item.slug, item.nombreCompleto, item.lugarNombre);
 
   return (
-    <article className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+    <article className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-start sm:p-4">
       <Link
         href={`/localizados/${item.slug}`}
         onClick={() => analytics.selectLocalizado(item.slug, source)}
@@ -28,7 +28,7 @@ export function LocalizadoCard({
         <p className="text-sm text-slate-600">
           En <span className="font-medium text-brand-700">{item.lugarNombre}</span>
         </p>
-        <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
           {item.cedula && <span>Cédula: {item.cedula}</span>}
           {item.edad && <span>Edad: {item.edad}</span>}
           {item.condicion !== "desconocido" && (
@@ -36,14 +36,16 @@ export function LocalizadoCard({
           )}
         </div>
       </Link>
-      <ShareButtons
-        variant="compact"
-        url={share.url}
-        title={share.title}
-        text={share.text}
-        label={`Compartir ${item.nombreCompleto}`}
-        contentType="localizado"
-      />
+      <div className="flex justify-end sm:shrink-0">
+        <ShareButtons
+          variant="compact"
+          url={share.url}
+          title={share.title}
+          text={share.text}
+          label={`Compartir ${item.nombreCompleto}`}
+          contentType="localizado"
+        />
+      </div>
     </article>
   );
 }

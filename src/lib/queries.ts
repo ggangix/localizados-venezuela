@@ -240,13 +240,25 @@ export async function getLocalizadoBySlug(slug: string) {
 
 export async function listLugares(): Promise<LugarDTO[]> {
   await connectDB();
-  const lugares = await Lugar.find().sort({ nombre: 1 }).lean<LeanLugar[]>();
+  const lugares = await Lugar.find().lean<LeanLugar[]>();
   const counts = await Localizado.aggregate<{ _id: LeanLugar["_id"]; total: number }>([
     { $match: PUBLISHED },
     { $group: { _id: "$lugarId", total: { $sum: 1 } } },
   ]);
   const countMap = new Map(counts.map((c) => [String(c._id), c.total]));
-  return lugares.map((l) => toLugarDTO(l, countMap.get(String(l._id)) ?? 0));
+  return lugares
+    .map((l) => toLugarDTO(l, countMap.get(String(l._id)) ?? 0))
+    .filter((l) => l.totalLocalizados > 0)
+    .sort(
+      (a, b) =>
+        b.totalLocalizados - a.totalLocalizados ||
+        a.nombre.localeCompare(b.nombre, "es")
+    );
+}
+
+export async function listTopLugares(limit = 8): Promise<LugarDTO[]> {
+  const lugares = await listLugares();
+  return lugares.slice(0, Math.max(0, limit));
 }
 
 type LugarFacetResult = {

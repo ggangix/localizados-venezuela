@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { HomeActionCards } from "@/components/HomeActionCards";
+import { HomeLugaresPreview } from "@/components/HomeLugaresPreview";
 import { SearchForm } from "@/components/SearchForm";
 import { ShareButtons } from "@/components/ShareButtons";
 import { getStats } from "@/lib/queries";
@@ -27,6 +28,8 @@ export default async function HomePage() {
         <h2 className="mb-4 text-xl font-semibold">Buscar localizado</h2>
         <SearchForm source="home" />
       </section>
+
+      <HomeLugaresPreview />
 
       <ShareButtons
         variant="full"
