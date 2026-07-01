@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { escapeRegex, isSameOriginRequest, jsonResponse } from "@/lib/api";
 import { connectDB } from "@/lib/db";
+import { contributionRateLimiter } from "@/lib/rate-limiter";
 import { Contribucion } from "@/lib/models/Contribucion";
 import { Localizado, normalizeNombre } from "@/lib/models/Localizado";
 import { Lugar } from "@/lib/models/Lugar";
@@ -103,6 +104,17 @@ function validateImage(file: File): string | null {
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) {
     return jsonResponse({ error: "Origen no permitido" }, { status: 403 });
+  }
+
+  // Freno de abuso: reCAPTCHA por sí solo no frena envíos automatizados en
+  // ráfaga. Limitamos por hash de IP antes de tocar la base de datos o el disco.
+  const rate = contributionRateLimiter.check(`contribucion:${hashIp(req)}`);
+  if (!rate.allowed) {
+    const retryAfter = Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000));
+    return jsonResponse(
+      { error: "Demasiadas contribuciones. Intenta de nuevo en un momento." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
   }
 
   await connectDB();
