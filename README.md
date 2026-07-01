@@ -4,7 +4,7 @@ Registro **open source y colaborativo** de personas **ya localizadas** tras el s
 
 **Sitio:** [localizadosvenezuela.com](https://localizadosvenezuela.com)
 
-> Este proyecto es **solo para localizados**. No sirve para reportar desaparecidos.  
+> Este proyecto es **solo para localizados**. No sirve para reportar desaparecidos.
 > Para desaparecidos: [desaparecidosterremotovenezuela.com](https://desaparecidosterremotovenezuela.com/)
 
 ## Qué hace
@@ -266,10 +266,36 @@ Orden sugerido si partes del Excel consolidado: primero `npm run seed:excel`, lu
 | `npm run lint:fix`   | ESLint con auto-fix                             |
 | `npm run format`     | Prettier                                        |
 | `npm run check`      | lint + format:check (lo que corre el CI)        |
+| `npm test`           | Vitest (una sola ejecución, CI)                 |
+| `npm run test:watch` | Vitest en modo watch (desarrollo)               |
 
 ## Colaborar
 
 Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para instrucciones detalladas sobre requisitos, arranque, flujo de trabajo, buenas prácticas y cómo reportar bugs.
+
+### Estilo de código
+
+- **ESLint** (config Next.js) + **Prettier** (con plugin Tailwind)
+- **Husky** + **lint-staged** formatean automáticamente al hacer commit
+- VS Code: instala las extensiones recomendadas (`.vscode/extensions.json`)
+
+### CI en Pull Requests
+
+GitHub Actions ejecuta en cada PR:
+
+- `npm run lint`
+- `npm run format:check`
+- `npm test`
+- `npm run build`
+
+### Ideas para contribuir
+
+- Mejorar búsqueda y deduplicación
+- Panel de moderación (fase 2)
+- Nuevas transcripciones en el [repo OCR](https://github.com/ecrespo/OCR-data_Terremoto_Venezuela_24062026) + `npm run seed:ocr`
+- Traducciones, accesibilidad, rendimiento móvil
+- Documentación de la API
+- Reportar bugs con datos de ejemplo en `seed/sample/`
 
 ## Estructura del proyecto
 

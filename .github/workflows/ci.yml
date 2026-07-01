@@ -24,6 +24,8 @@ jobs:
 
       - run: npm run format:check
 
+      - run: npm test
+
       - run: npm run build
         env:
           MONGODB_URI: mongodb://127.0.0.1:27017/localizados_venezuela
