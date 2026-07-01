@@ -124,12 +124,14 @@ export default async function BuscarPage({
             {q ? <> para &ldquo;{q}&rdquo;</> : " con los filtros aplicados"}
           </p>
           {q && (
-            <ShareButtons
-              variant="full"
-              {...shareBusqueda(q)}
-              label="Compartir esta búsqueda"
-              contentType="search"
-            />
+            <div className="hidden md:block">
+              <ShareButtons
+                variant="full"
+                {...shareBusqueda(q)}
+                label="Compartir esta búsqueda"
+                contentType="search"
+              />
+            </div>
           )}
         </>
       )}

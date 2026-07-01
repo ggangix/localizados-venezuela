@@ -39,7 +39,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <GoogleAnalytics />
         <SiteHeader />
-        <main className="mx-auto min-h-[70vh] max-w-5xl px-3 py-5 pb-24 sm:px-4 sm:py-8 sm:pb-8">
+        <main className="mx-auto min-h-[70vh] max-w-5xl px-3 py-5 pb-20 sm:px-4 sm:py-8 sm:pb-8">
           {children}
         </main>
         <SiteFooter />

@@ -20,6 +20,20 @@ function encode(u: string) {
   return encodeURIComponent(u);
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
+}
+
 export function ShareButtons({
   url,
   title,
@@ -30,6 +44,7 @@ export function ShareButtons({
 }: ShareButtonsProps) {
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [copied, setCopied] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     setCanNativeShare(
@@ -100,9 +115,13 @@ export function ShareButtons({
   ];
 
   const iconBtn =
-    "inline-flex h-11 min-w-11 items-center justify-center rounded-xl transition active:scale-95";
+    "inline-flex h-9 min-w-9 items-center justify-center rounded-lg transition active:scale-95";
+  const iconSize = "h-3.5 w-3.5";
+  const stickyIconSize = "h-4 w-4";
 
   if (variant === "compact") {
+    const showMobileMinimal = isMobile && canNativeShare;
+
     return (
       <div
         className="flex items-center gap-1"
@@ -111,46 +130,59 @@ export function ShareButtons({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        {canNativeShare && (
+        {showMobileMinimal ? (
           <button
             type="button"
             onClick={() => void nativeShare()}
             className={`${iconBtn} bg-brand-600 text-white hover:bg-brand-700`}
             aria-label="Compartir"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className={iconSize} />
           </button>
+        ) : (
+          <>
+            {canNativeShare && !isMobile && (
+              <button
+                type="button"
+                onClick={() => void nativeShare()}
+                className={`${iconBtn} bg-brand-600 text-white hover:bg-brand-700`}
+                aria-label="Compartir"
+              >
+                <Share2 className={iconSize} />
+              </button>
+            )}
+            <a
+              href={channels[0].href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => trackShare(channels[0].method)}
+              className={`${iconBtn} ${channels[0].className}`}
+              aria-label="WhatsApp"
+            >
+              <SiWhatsapp className={iconSize} />
+            </a>
+            <button
+              type="button"
+              onClick={() => void copyLink()}
+              className={`${iconBtn} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50`}
+              aria-label="Copiar enlace"
+            >
+              {copied ? (
+                <Check className={`${iconSize} text-emerald-600`} />
+              ) : (
+                <Copy className={iconSize} />
+              )}
+            </button>
+          </>
         )}
-        <a
-          href={channels[0].href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => trackShare(channels[0].method)}
-          className={`${iconBtn} ${channels[0].className}`}
-          aria-label="WhatsApp"
-        >
-          <SiWhatsapp className="h-4 w-4" />
-        </a>
-        <button
-          type="button"
-          onClick={() => void copyLink()}
-          className={`${iconBtn} border border-slate-200 bg-white text-slate-600 hover:bg-slate-50`}
-          aria-label="Copiar enlace"
-        >
-          {copied ? (
-            <Check className="h-4 w-4 text-emerald-600" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </button>
       </div>
     );
   }
 
   const wrapperClass =
     variant === "sticky"
-      ? "fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
-      : "rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+      ? "fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur-sm pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden"
+      : "rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4";
 
   return (
     <section className={wrapperClass} aria-label={label}>
@@ -162,9 +194,9 @@ export function ShareButtons({
         <button
           type="button"
           onClick={() => void nativeShare()}
-          className="mb-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-base font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98]"
+          className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] sm:h-12 sm:text-base"
         >
-          <Share2 className="h-5 w-5" />
+          <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           Compartir
         </button>
       )}
@@ -172,7 +204,7 @@ export function ShareButtons({
       <div
         className={
           variant === "sticky"
-            ? "grid grid-cols-5 gap-2"
+            ? "grid grid-cols-5 gap-1.5"
             : "grid grid-cols-2 gap-2 sm:grid-cols-4"
         }
       >
@@ -184,10 +216,12 @@ export function ShareButtons({
             rel="noopener noreferrer"
             onClick={() => trackShare(method)}
             className={`${iconBtn} flex-col gap-0.5 px-2 ${channelClass} ${
-              variant === "sticky" ? "h-14 min-w-0 flex-1" : "h-12 w-full"
+              variant === "sticky" ? "h-11 min-w-0 flex-1" : "h-10 w-full sm:h-12"
             }`}
           >
-            <Icon className="h-5 w-5 shrink-0" />
+            <Icon
+              className={`shrink-0 ${variant === "sticky" ? stickyIconSize : "h-4 w-4 sm:h-5 sm:w-5"}`}
+            />
             {variant !== "sticky" && (
               <span className="text-[10px] font-medium leading-none">{name}</span>
             )}
@@ -197,13 +231,19 @@ export function ShareButtons({
           type="button"
           onClick={() => void copyLink()}
           className={`${iconBtn} flex-col gap-0.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 ${
-            variant === "sticky" ? "h-14 min-w-0 flex-1" : "h-12 w-full"
+            variant === "sticky" ? "h-11 min-w-0 flex-1" : "h-10 w-full sm:h-12"
           }`}
         >
           {copied ? (
-            <Check className="h-5 w-5 text-emerald-600" />
+            <Check
+              className={`text-emerald-600 ${variant === "sticky" ? stickyIconSize : "h-4 w-4 sm:h-5 sm:w-5"}`}
+            />
           ) : (
-            <Copy className="h-5 w-5" />
+            <Copy
+              className={
+                variant === "sticky" ? stickyIconSize : "h-4 w-4 sm:h-5 sm:w-5"
+              }
+            />
           )}
           {variant !== "sticky" && (
             <span className="text-[10px] font-medium leading-none">
