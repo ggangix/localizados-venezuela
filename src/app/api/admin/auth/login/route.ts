@@ -5,7 +5,8 @@ import {
   isValidAdminSecret,
   createAdminSessionResponse,
 } from "@/lib/admin-auth";
-import { loginRateLimiter } from "@/lib/rate-limiter";
+import { RateLimitError } from "@/lib/errors";
+import { loginRateLimiter } from "@/lib/security/login-limiter";
 import { safeJsonParseBody } from "@/lib/safe-json";
 
 export const POST = withErrorHandler(async (req: Request) => {
@@ -15,12 +16,9 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   const ipHash = ip;
-  const rateCheck = loginRateLimiter.check(`login:${ipHash}`);
+  const rateCheck = await loginRateLimiter.check(`login:${ipHash}`);
   if (!rateCheck.allowed) {
-    return jsonResponse(
-      { error: "Demasiados intentos. Espera 15 minutos." },
-      { status: 429 }
-    );
+    throw new RateLimitError("Demasiadas solicitudes. Espera 15 minutos.");
   }
 
   const bodyText = await req.text();
