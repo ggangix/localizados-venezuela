@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import { findLugarByNombre, inferLugarTipo } from "@/lib/lugar-utils";
 import { Localizado, normalizeNombre } from "@/lib/models/Localizado";
 import { Lugar } from "@/lib/models/Lugar";
@@ -27,8 +28,11 @@ export async function resolveLugarId(
   lugarNombre?: string
 ): Promise<mongoose.Types.ObjectId> {
   if (lugarId) {
+    if (!mongoose.Types.ObjectId.isValid(lugarId)) {
+      throw new ValidationError("lugarId inválido");
+    }
     const found = await Lugar.findById(lugarId).select("_id");
-    if (!found) throw new Error("Lugar no encontrado");
+    if (!found) throw new NotFoundError("Lugar no encontrado");
     return found._id;
   }
 
@@ -129,8 +133,11 @@ export async function updateLocalizado(
   patch: Partial<PersonaInput> & { restore?: boolean }
 ) {
   await connectDB();
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ValidationError("ID inválido");
+  }
   const doc = await Localizado.findById(id);
-  if (!doc) throw new Error("Persona no encontrada");
+  if (!doc) throw new NotFoundError("Persona no encontrada");
 
   if (patch.restore) {
     doc.deletedAt = undefined;
@@ -260,8 +267,11 @@ export async function setEstadoLocalizados(
 
 export async function moveLocalizados(ids: string[], lugarId: string) {
   await connectDB();
+  if (!mongoose.Types.ObjectId.isValid(lugarId)) {
+    throw new ValidationError("lugarId inválido");
+  }
   const lugar = await Lugar.findById(lugarId);
-  if (!lugar) throw new Error("Lugar no encontrado");
+  if (!lugar) throw new NotFoundError("Lugar no encontrado");
 
   let moved = 0;
   for (const id of ids) {

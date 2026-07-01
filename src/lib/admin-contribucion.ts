@@ -1,5 +1,7 @@
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import { createLocalizado, resolveLugarId } from "@/lib/admin-localizado";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import { Contribucion } from "@/lib/models/Contribucion";
 import { Localizado, normalizeNombre } from "@/lib/models/Localizado";
 
@@ -14,8 +16,11 @@ export async function approveContribucion(
   }
 ) {
   await connectDB();
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ValidationError("ID inválido");
+  }
   const contrib = await Contribucion.findById(id);
-  if (!contrib) throw new Error("Contribución no encontrada");
+  if (!contrib) throw new NotFoundError("Contribución no encontrada");
   if (contrib.estado !== "pending")
     throw new Error("Solo se aprueban contribuciones pending");
 
@@ -90,8 +95,11 @@ export async function rejectContribucion(
   opts: { moderadoPor?: string; notasModeracion?: string }
 ) {
   await connectDB();
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ValidationError("ID inválido");
+  }
   const contrib = await Contribucion.findById(id);
-  if (!contrib) throw new Error("Contribución no encontrada");
+  if (!contrib) throw new NotFoundError("Contribución no encontrada");
   if (contrib.estado !== "pending")
     throw new Error("Solo se rechazan contribuciones pending");
 
